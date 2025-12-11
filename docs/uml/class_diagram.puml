@@ -1,0 +1,217 @@
+@startuml class_diagram
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+skinparam linetype ortho
+
+title Stock Index Futures Backtest System - Class Diagram
+
+package "domain" {
+    class FuturesDailyBar <<dataclass>> {
+        +trade_date: date
+        +open: float
+        +high: float
+        +low: float
+        +close: float
+        +settle: float
+        +pre_settle: float
+        +volume: float
+        +amount: float
+        +open_interest: float
+    }
+
+    class IndexDailyBar <<dataclass>> {
+        +trade_date: date
+        +open: float
+        +high: float
+        +low: float
+        +close: float
+    }
+
+    class FuturesContract {
+        +ts_code: str
+        +fut_code: str
+        +multiplier: float
+        +list_date: date
+        +delist_date: date
+        -_daily_bars: Dict[date, FuturesDailyBar]
+        --
+        +add_bar(bar)
+        +get_bar(date): FuturesDailyBar
+        +get_price(date, field): float
+        +is_tradable(date): bool
+        +days_to_expiry(date): int
+        +get_volume(date): float
+    }
+
+    class EquityIndex {
+        +index_code: str
+        +index_name: str
+        -_daily_bars: Dict[date, IndexDailyBar]
+        --
+        +add_bar(bar)
+        +get_bar(date): IndexDailyBar
+        +get_nav_series(): Series
+    }
+
+    class ContractChain {
+        +index: EquityIndex
+        +fut_code: str
+        -_contracts: Dict[str, FuturesContract]
+        --
+        +get_contract(ts_code): FuturesContract
+        +get_active_contracts(date): List[FuturesContract]
+        +get_main_contract(date, rule): FuturesContract
+        +get_nearby_contracts(date, k): List[FuturesContract]
+        +get_chain_snapshot(date): Dict[str, FuturesDailyBar]
+        +get_contracts_expiring_after(date, min_days): List
+    }
+
+    FuturesContract *-- FuturesDailyBar : contains
+    EquityIndex *-- IndexDailyBar : contains
+    ContractChain o-- FuturesContract : manages 1..*
+    ContractChain --> EquityIndex : underlying
+}
+
+package "data" {
+    class MarketSnapshot {
+        +trade_date: date
+        +index_bar: IndexDailyBar
+        +futures_quotes: Dict[str, FuturesDailyBar]
+        --
+        +get_contract_bar(ts_code): FuturesDailyBar
+        +get_futures_price(ts_code, field): float
+        +get_index_close(): float
+        +get_basis(ts_code, relative): float
+    }
+
+    class DataHandler {
+        +index: EquityIndex
+        +contract_chain: ContractChain
+        +calendar: List[date]
+        -_snapshot_cache: Dict[date, MarketSnapshot]
+        --
+        +from_processed_data(path, fut_code): DataHandler
+        +get_trading_calendar(start, end): List[date]
+        +get_snapshot(date): MarketSnapshot
+        +get_margin_rate(date): float
+    }
+
+    DataHandler --> ContractChain
+    DataHandler --> EquityIndex
+    DataHandler ..> MarketSnapshot : creates
+    MarketSnapshot --> IndexDailyBar
+    MarketSnapshot --> FuturesDailyBar
+}
+
+package "account" {
+    class Position {
+        +contract: FuturesContract
+        +volume: int
+        +entry_price: float
+        +last_settle: float
+        --
+        +notional_value(date): float
+        +mark_to_market(date): float
+        +update_volume(delta, price): float
+    }
+
+    class TradeRecord <<dataclass>> {
+        +trade_date: date
+        +ts_code: str
+        +direction: str
+        +volume: int
+        +price: float
+        +amount: float
+        +commission: float
+        +reason: str
+    }
+
+    class Account {
+        +initial_capital: float
+        +margin_rate: float
+        +commission_rate: float
+        +cash: float
+        +realized_pnl: float
+        -_positions: Dict[str, Position]
+        -_nav_history: Dict[date, float]
+        -_trade_log: List[TradeRecord]
+        --
+        +equity: float
+        +nav: float
+        +mark_to_market(snapshot): float
+        +rebalance_to_target(targets, snapshot, contracts): float
+        +get_nav_series(): Series
+    }
+
+    Account *-- Position : manages
+    Account *-- TradeRecord : records
+    Position --> FuturesContract
+}
+
+package "strategy" {
+    abstract class Strategy {
+        +contract_chain: ContractChain
+        --
+        {abstract} +on_bar(snapshot, account): Dict[str, int]
+    }
+
+    class BaselineRollStrategy extends Strategy {
+        +roll_days_before_expiry: int
+        +target_leverage: float
+        +contract_selection: str
+        --
+        +on_bar(snapshot, account): Dict[str, int]
+        -_calculate_target_volume(): int
+        -_select_contract(date): FuturesContract
+    }
+
+    class BasisTimingStrategy extends BaselineRollStrategy {
+        +basis_entry_threshold: float
+        +basis_exit_threshold: float
+        -_basis_history: deque
+        -_position_state: str
+        --
+        +on_bar(snapshot, account): Dict[str, int]
+        -_get_timing_signal(basis): str
+    }
+
+    Strategy --> ContractChain
+}
+
+package "backtest" {
+    class BacktestResult <<dataclass>> {
+        +nav_series: Series
+        +benchmark_nav: Series
+        +trade_summary: DataFrame
+        +metrics: Dict
+        +analyzer: Analyzer
+    }
+
+    class Analyzer {
+        +nav_series: Series
+        +benchmark_nav: Series
+        +strategy_name: str
+        --
+        +compute_metrics(): Dict
+        +generate_report_html(): str
+        +plot_results(): Figure
+    }
+
+    class BacktestEngine {
+        +data_handler: DataHandler
+        +strategy: Strategy
+        +initial_capital: float
+        +account: Account
+        --
+        +run(start, end): BacktestResult
+        -_process_day(date, contracts)
+    }
+
+    BacktestEngine --> DataHandler
+    BacktestEngine --> Strategy
+    BacktestEngine --> Account
+    BacktestEngine ..> BacktestResult : creates
+    BacktestResult --> Analyzer
+}
+
+@enduml

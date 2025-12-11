@@ -1,0 +1,81 @@
+@startuml flowchart_basis_timing
+skinparam linetype ortho
+
+
+title Basis Timing Strategy - Flow Chart
+
+start
+
+:Receive MarketSnapshot;
+
+:Call parent BaselineRollStrategy.on_bar()
+to get base_targets;
+
+if (base_targets empty?) then (yes)
+    :return {};
+    stop
+else (no)
+endif
+
+:Get current contract ts_code;
+
+:Calculate basis = (F - S) / S;
+
+if (basis is None or invalid?) then (yes)
+    :return base_targets;
+    note right: Use baseline strategy
+    stop
+else (no)
+endif
+
+:Record basis to history;
+
+:Get timing signal;
+
+partition "Signal Logic" {
+    if (use_percentile mode?) then (yes)
+        :Calculate percentile of current basis;
+        if (percentile <= entry_percentile?) then (yes)
+            :signal = ENTER;
+        elseif (percentile >= exit_percentile?) then (yes)
+            :signal = EXIT;
+        else (no)
+            :signal = HOLD;
+        endif
+    else (no)
+        if (basis <= basis_entry_threshold?) then (yes)
+            :signal = ENTER;
+            note right: Deep discount, go long
+        elseif (basis >= basis_exit_threshold?) then (yes)
+            :signal = EXIT;
+            note right: Premium/narrow, close
+        else (no)
+            :signal = HOLD;
+        endif
+    endif
+}
+
+partition "Position Adjustment" {
+    if (signal == ENTER?) then (yes)
+        :position_state = IN;
+        :target = base_volume;
+        note right: Full position
+    elseif (signal == EXIT?) then (yes)
+        :position_state = OUT;
+        :target = 0;
+        note right: Close all
+    else (HOLD)
+        if (position_state == IN?) then (yes)
+            :target = base_volume;
+        else (no)
+            :target = 0;
+            note right: Stay out
+        endif
+    endif
+}
+
+:return {ts_code: target};
+
+stop
+
+@enduml

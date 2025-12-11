@@ -1,0 +1,73 @@
+@startuml component_diagram
+skinparam linetype ortho
+
+
+title Stock Index Futures Backtest - Component Diagram
+
+package "Data Layer" {
+    [Parquet Files] as Data
+    [DataHandler] as DH
+    [MarketSnapshot] as Snap
+    
+    Data --> DH : load
+    DH --> Snap : create
+}
+
+package "Domain Layer" {
+    [EquityIndex] as Index
+    [FuturesContract] as Contract
+    [ContractChain] as Chain
+    
+    Index --> Chain
+    Contract --> Chain
+}
+
+package "Strategy Layer" {
+    interface "Strategy (ABC)" as IStrategy
+    [BaselineRollStrategy] as Baseline
+    [BasisTimingStrategy] as Timing
+    
+    IStrategy <|.. Baseline
+    Baseline <|-- Timing
+}
+
+package "Account Layer" {
+    [Account] as Acct
+    [Position] as Pos
+    [TradeRecord] as Trade
+    
+    Acct --> Pos
+    Acct --> Trade
+}
+
+package "Backtest Layer" {
+    [BacktestEngine] as Engine
+    [Analyzer] as Analyzer
+    [BacktestResult] as Result
+    
+    Engine --> Analyzer
+    Engine --> Result
+}
+
+package "Output Layer" {
+    [HTML Report] as HTML
+    [PNG Charts] as PNG
+    [CSV Metrics] as CSV
+}
+
+' Dependencies
+DH --> Chain : manages
+Chain --> Snap : provides data to
+
+Engine --> DH : uses
+Engine --> IStrategy : calls
+Engine --> Acct : manages
+
+IStrategy --> Chain : queries
+IStrategy --> Snap : reads
+
+Analyzer --> HTML : generates
+Analyzer --> PNG : generates
+Analyzer --> CSV : exports
+
+@enduml

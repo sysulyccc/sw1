@@ -1,0 +1,55 @@
+@startuml sequence_roll
+skinparam linetype ortho
+
+skinparam sequenceMessageAlign center
+
+title Contract Roll - Sequence Diagram
+
+participant "BaselineRollStrategy" as Strategy
+participant "ContractChain" as Chain
+participant "FuturesContract" as Contract
+participant "MarketSnapshot" as Snapshot
+participant "Account" as Account
+
+== Check Roll Condition ==
+Strategy -> Strategy: on_bar(snapshot, account)
+activate Strategy
+
+Strategy -> Chain: get_main_contract(trade_date, rule='volume')
+activate Chain
+Chain -> Chain: get_active_contracts(trade_date)
+Chain -> Contract: get_volume(trade_date)
+Chain --> Strategy: current_contract
+deactivate Chain
+
+Strategy -> Contract: days_to_expiry(trade_date)
+Contract --> Strategy: days_remaining
+
+alt days_remaining <= roll_days_before_expiry
+    note over Strategy: Need to roll!
+    
+    == Find Roll Target ==
+    Strategy -> Chain: get_contracts_expiring_after(trade_date, min_days)
+    Chain --> Strategy: candidates[]
+    
+    Strategy -> Strategy: select best contract (volume/nearby)
+    note over Strategy: new_contract selected
+    
+    == Generate Roll Targets ==
+    Strategy -> Strategy: calculate target volume
+    Strategy --> Strategy: targets = {new_contract: volume, old_contract: 0}
+    
+else days_remaining > roll_days_before_expiry
+    note over Strategy: No roll needed
+    Strategy --> Strategy: targets = {current_contract: volume}
+end
+
+Strategy --> Account: return target_positions
+deactivate Strategy
+
+== Execute Roll (in Account) ==
+Account -> Account: close old_contract position
+Account -> Account: open new_contract position
+note over Account: Roll completed
+
+@enduml

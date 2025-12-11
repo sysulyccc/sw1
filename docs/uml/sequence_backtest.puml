@@ -1,0 +1,71 @@
+@startuml sequence_backtest
+skinparam linetype ortho
+
+skinparam sequenceMessageAlign center
+
+title Backtest Engine - Main Loop Sequence Diagram
+
+participant "main.py" as Main
+participant "BacktestEngine" as Engine
+participant "DataHandler" as DataHandler
+participant "Strategy" as Strategy
+participant "Account" as Account
+participant "MarketSnapshot" as Snapshot
+
+== Initialization ==
+Main -> Engine: create(data_handler, strategy, config)
+activate Engine
+Engine -> Account: create(initial_capital, margin_rate)
+activate Account
+
+== Backtest Loop (for each trading day) ==
+Main -> Engine: run(start_date, end_date)
+
+loop for each trade_date in calendar
+    Engine -> Engine: _process_day(trade_date)
+    
+    group Get Market Data
+        Engine -> DataHandler: get_snapshot(trade_date)
+        activate DataHandler
+        DataHandler -> Snapshot: create(trade_date, index_bar, futures_quotes)
+        DataHandler --> Engine: snapshot
+        deactivate DataHandler
+    end
+    
+    group Mark-to-Market
+        Engine -> Account: mark_to_market(snapshot)
+        Account -> Account: update positions PnL
+        Account -> Account: settle daily PnL to cash
+        Account --> Engine: daily_pnl
+    end
+    
+    group Strategy Signal
+        Engine -> Strategy: on_bar(snapshot, account)
+        activate Strategy
+        Strategy -> Strategy: calculate basis / check roll
+        Strategy -> Strategy: determine target positions
+        Strategy --> Engine: target_positions: Dict[ts_code, volume]
+        deactivate Strategy
+    end
+    
+    group Execute Trades
+        Engine -> Account: rebalance_to_target(target_positions, snapshot)
+        Account -> Account: close unwanted positions
+        Account -> Account: open/adjust positions
+        Account -> Account: record trades
+        Account --> Engine: total_commission
+    end
+    
+    group Record NAV
+        Engine -> Account: record_nav(trade_date)
+        Account -> Account: nav_history[date] = nav
+    end
+end
+
+== Generate Results ==
+Engine -> Engine: build Analyzer
+Engine --> Main: BacktestResult
+deactivate Account
+deactivate Engine
+
+@enduml
