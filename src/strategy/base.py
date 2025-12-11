@@ -2,10 +2,11 @@
 Abstract strategy base class.
 """
 from abc import ABC, abstractmethod
-from typing import Dict
+from typing import Dict, Union
 
 from ..domain.chain import ContractChain
 from ..data.snapshot import MarketSnapshot
+from ..data.signal_snapshot import SignalSnapshot
 from ..account.account import Account
 
 
@@ -33,18 +34,23 @@ class Strategy(ABC):
     @abstractmethod
     def on_bar(
         self,
-        snapshot: MarketSnapshot,
+        snapshot: SignalSnapshot,
         account: Account
     ) -> Dict[str, int]:
         """
         Generate target positions based on current market and account state.
         
+        IMPORTANT: The snapshot is a RESTRICTED SignalSnapshot that only provides
+        data available at signal time (T-day open, pre_settle, T-1 day data).
+        You CANNOT access T-day close, settle, volume, etc.
+        
         Args:
-            snapshot: Current market snapshot
+            snapshot: Restricted signal snapshot (prevents lookahead bias)
             account: Current account state
             
         Returns:
-            Dict mapping ts_code to target volume (positive=long, negative=short)
+            Dict mapping contract code (ts_code) to target volume.
+            Positive volume = long, negative = short, 0 = no position.
         """
         pass
     

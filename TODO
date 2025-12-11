@@ -1,9 +1,0 @@
-1. 把这个时序逻辑放在合适的UML图里面
-T日 09:30 开盘
-     │
-     ├─ 使用 open 价格计算信号和目标仓位 (signal_price_field)
-     ├─ 使用 open 价格执行交易 (execution_price_field)
-     │
-T日 15:00 收盘 ──> settle 价格公布
-     │
-     └─ 使用 settle 价格盯市结算 (mark_to_market, 保持不变)

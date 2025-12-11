@@ -8,7 +8,7 @@ from loguru import logger
 
 from ..domain.contract import FuturesContract
 from ..domain.chain import ContractChain
-from ..data.snapshot import MarketSnapshot
+from ..data.signal_snapshot import SignalSnapshot
 from ..account.account import Account
 from .baseline_roll import BaselineRollStrategy
 
@@ -63,7 +63,7 @@ class BasisTimingStrategy(BaselineRollStrategy):
     
     def on_bar(
         self,
-        snapshot: MarketSnapshot,
+        snapshot: SignalSnapshot,
         account: Account
     ) -> Dict[str, int]:
         """
@@ -85,8 +85,9 @@ class BasisTimingStrategy(BaselineRollStrategy):
         
         base_volume = base_targets.get(ts_code, 0)
         
-        # Calculate current basis using signal price field
-        basis = snapshot.get_basis(ts_code, relative=True, price_field=self.signal_price_field)
+        # Calculate current basis using SignalSnapshot
+        # This ensures we CANNOT use T-day close (lookahead bias prevention)
+        basis = snapshot.get_basis(ts_code, relative=True)
         if basis is None:
             # No basis info, use base strategy
             return base_targets
@@ -178,7 +179,7 @@ class BasisTimingStrategy(BaselineRollStrategy):
     
     def select_best_discount_contract(
         self,
-        snapshot: MarketSnapshot,
+        snapshot: SignalSnapshot,
         min_liquidity_volume: float = 1000,
     ) -> Optional[str]:
         """

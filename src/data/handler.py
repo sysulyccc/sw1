@@ -12,6 +12,7 @@ from ..domain.index import EquityIndex
 from ..domain.contract import FuturesContract
 from ..domain.chain import ContractChain
 from .snapshot import MarketSnapshot
+from .signal_snapshot import SignalSnapshot, SnapshotFactory
 
 
 # Mapping from fut_code to index info
@@ -41,6 +42,7 @@ class DataHandler:
         self.calendar = calendar
         self._margin_rates = margin_rates or {}
         self._snapshot_cache: Dict[date, MarketSnapshot] = {}
+        self._signal_snapshot_cache: Dict[date, SignalSnapshot] = {}
     
     def __repr__(self) -> str:
         return f"DataHandler({self.contract_chain.fut_code}, calendar={len(self.calendar)} days)"
@@ -274,3 +276,45 @@ class DataHandler:
         except ValueError:
             pass
         return None
+    
+    def get_signal_snapshot(self, trade_date: date) -> Optional[SignalSnapshot]:
+        """
+        Get RESTRICTED market snapshot for signal calculation.
+        
+        This snapshot intentionally DOES NOT provide:
+        - T-day close, settle, high, low, volume, oi
+        - T-day index close
+        
+        Only provides:
+        - T-day open, pre_settle
+        - T-day index open
+        - T-1 day complete data
+        """
+        if trade_date in self._signal_snapshot_cache:
+            return self._signal_snapshot_cache[trade_date]
+        
+        # Get current day data
+        index_bar = self.index.get_bar(trade_date)
+        if index_bar is None:
+            return None
+        
+        futures_quotes = self.contract_chain.get_chain_snapshot(trade_date)
+        if not futures_quotes:
+            return None
+        
+        # Get previous day data
+        prev_date = self.get_prev_trading_date(trade_date)
+        prev_index_bar = self.index.get_bar(prev_date) if prev_date else None
+        prev_futures_quotes = self.contract_chain.get_chain_snapshot(prev_date) if prev_date else None
+        
+        # Create restricted snapshot
+        signal_snapshot = SnapshotFactory.create_signal_snapshot(
+            trade_date=trade_date,
+            index_bar=index_bar,
+            futures_quotes=futures_quotes,
+            prev_index_bar=prev_index_bar,
+            prev_futures_quotes=prev_futures_quotes,
+        )
+        
+        self._signal_snapshot_cache[trade_date] = signal_snapshot
+        return signal_snapshot

@@ -1,22 +1,34 @@
 # Code Review Report
 
-## 1. Future Information Leakage Analysis
+## 1. Future Information Leakage Prevention (UPDATED)
 
-### 1.1 Price Data Usage
+### 1.1 SignalSnapshot Design
 
-| Component | Data Used | Potential Issue | Risk Level |
-|-----------|-----------|-----------------|------------|
-| `on_bar()` signal | settle price | Uses same-day settle | Low |
-| `rebalance_to_target()` | settle price | Executes at settle | Low |
-| `mark_to_market()` | settle price | Daily settlement | None |
-| `get_basis()` | settle + index close | Same-day data | Low |
+The system now uses a **two-snapshot architecture** to prevent lookahead bias:
 
-**Assessment**: The system uses **T-day settle price** for both signal generation and trade execution. This is a common simplification in daily-frequency backtests.
+```
+SignalSnapshot (for strategy)     MarketSnapshot (for execution)
+├── T-day open                    ├── T-day open/close/settle
+├── T-day pre_settle              ├── T-day volume/oi
+├── T-day index open              ├── T-day index close
+└── T-1 day complete data         └── All fields available
+```
 
-**In Practice**: 
-- Settle price is determined after market close
-- Strategy implicitly assumes orders can be executed at/near settle price
-- This is reasonable for liquid index futures (IC/IF/IM) with tight spreads
+**Key changes**:
+1. Strategy receives `SignalSnapshot` - CANNOT access T-day close, settle, volume
+2. Execution uses full `MarketSnapshot` - for trade execution at configured price
+3. Mark-to-market uses full snapshot - settle price (correct behavior)
+
+### 1.2 Price Data Access Control
+
+| Component | Snapshot Type | Available Fields | Risk Level |
+|-----------|--------------|------------------|------------|
+| `on_bar()` | **SignalSnapshot** | open, pre_settle only | **None** |
+| `rebalance_to_target()` | MarketSnapshot | execution_price_field | None |
+| `mark_to_market()` | MarketSnapshot | settle price | None |
+| `get_basis()` | **SignalSnapshot** | open prices only | **None** |
+
+**Result**: Strategy CANNOT use T-day close, settle, or volume for signal generation.
 
 ### 1.2 Contract Selection
 

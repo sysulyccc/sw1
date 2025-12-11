@@ -1,0 +1,76 @@
+@startuml backtest_timeline
+skinparam linetype ortho
+
+title Backtest Day Timeline - Preventing Lookahead Bias
+
+|#LightBlue| Market Time |
+|#LightGreen| Backtest Engine |
+|#LightYellow| Strategy |
+|#Pink| Data Access |
+
+|Market Time|
+:T Day 09:30 - Open;
+
+|Backtest Engine|
+:get_full_snapshot(T);
+note right
+  Full snapshot for:
+  - Mark-to-market
+  - Trade execution
+end note
+
+:get_signal_snapshot(T);
+note right
+  **RESTRICTED** snapshot for strategy
+  Contains ONLY:
+  - T-day open, pre_settle
+  - T-day index open
+  - T-1 day complete data
+  
+  **FORBIDDEN**:
+  - T-day close, settle
+  - T-day volume, oi
+  - T-day index close
+end note
+
+|Strategy|
+:on_bar(signal_snapshot, account);
+note right
+  Strategy can ONLY access
+  SignalSnapshot methods:
+  - get_futures_price('open')
+  - get_futures_price('pre_settle')
+  - get_index_price('open')
+  - get_basis() [uses open prices]
+end note
+
+:return target_positions;
+
+|Backtest Engine|
+:mark_to_market(full_snapshot);
+note right
+  Uses settle price
+  for daily settlement
+  (correct behavior)
+end note
+
+:rebalance_to_target(target_positions, full_snapshot);
+note right
+  Execute trades at
+  configured execution_price_field
+  (default: open)
+end note
+
+|Market Time|
+:T Day 15:00 - Close;
+
+|Market Time|
+:Settle price announced;
+
+|Backtest Engine|
+:record_nav(T);
+
+|Market Time|
+:T+1 Day;
+
+@enduml

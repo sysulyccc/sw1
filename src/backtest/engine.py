@@ -8,6 +8,7 @@ import pandas as pd
 from loguru import logger
 
 from ..data.handler import DataHandler
+from ..data.signal_snapshot import SignalSnapshot
 from ..strategy.base import Strategy
 from ..account.account import Account
 from ..config import TRADING_DAYS_PER_YEAR
@@ -139,22 +140,38 @@ class BacktestEngine:
         )
     
     def _process_day(self, trade_date: date, contracts: dict) -> None:
-        """Process a single trading day."""
-        # Get snapshot
-        snapshot = self.data_handler.get_snapshot(trade_date)
-        if snapshot is None:
+        """
+        Process a single trading day.
+        
+        Timeline:
+        1. Get full snapshot (for settlement and execution)
+        2. Get signal snapshot (RESTRICTED - for strategy)
+        3. Mark-to-market using settle price
+        4. Strategy generates signal using ONLY signal snapshot
+        5. Execute trades at execution price
+        6. Record NAV
+        """
+        # Get full snapshot (for mark-to-market and execution)
+        full_snapshot = self.data_handler.get_snapshot(trade_date)
+        if full_snapshot is None:
             return
         
-        # Mark-to-market existing positions
-        self.account.mark_to_market(snapshot)
+        # Get RESTRICTED signal snapshot (prevents lookahead bias)
+        signal_snapshot = self.data_handler.get_signal_snapshot(trade_date)
+        if signal_snapshot is None:
+            return
         
-        # Get target positions from strategy
-        target_positions = self.strategy.on_bar(snapshot, self.account)
+        # Mark-to-market existing positions (uses settle price - correct)
+        self.account.mark_to_market(full_snapshot)
         
-        # Execute trades
+        # Get target positions from strategy using RESTRICTED snapshot
+        # Strategy CANNOT see today's close, settle, volume, etc.
+        target_positions = self.strategy.on_bar(signal_snapshot, self.account)
+        
+        # Execute trades using full snapshot (at configured execution price)
         self.account.rebalance_to_target(
             target_positions,
-            snapshot,
+            full_snapshot,
             contracts,
             reason="STRATEGY"
         )

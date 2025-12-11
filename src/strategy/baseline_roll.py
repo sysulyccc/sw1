@@ -7,7 +7,7 @@ from loguru import logger
 
 from ..domain.contract import FuturesContract
 from ..domain.chain import ContractChain
-from ..data.snapshot import MarketSnapshot
+from ..data.signal_snapshot import SignalSnapshot
 from ..account.account import Account
 from .base import Strategy
 
@@ -54,7 +54,7 @@ class BaselineRollStrategy(Strategy):
     
     def on_bar(
         self,
-        snapshot: MarketSnapshot,
+        snapshot: SignalSnapshot,
         account: Account
     ) -> Dict[str, int]:
         """
@@ -167,7 +167,7 @@ class BaselineRollStrategy(Strategy):
     def _calculate_target_volume(
         self,
         contract: FuturesContract,
-        snapshot: MarketSnapshot,
+        snapshot: SignalSnapshot,
         account: Account
     ) -> int:
         """

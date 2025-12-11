@@ -27,7 +27,7 @@ contract_selection = "nearby"  # Options: "nearby", "volume", "oi"
 min_roll_days = 5
 target_leverage = 1.0
 
-# Basis timing parameters (only used when strategy_type = "basis_timing")
+# Basis timing parameters (only used when # strategy_type = "basis_timing")
 basis_entry_threshold = -0.02   # Enter when basis < -2%
 basis_exit_threshold = 0.005    # Exit when basis > +0.5%
 lookback_window = 60
