@@ -22,10 +22,12 @@ strategy_type = "smart_roll"
 strategy_name = "Smart Roll Strategy (Volume)"
 
 # Roll parameters
-roll_days_before_expiry = 1  # Safety net for smart roll
+roll_days_before_expiry = 2  # Safety net for smart roll (trading days, not calendar days)
 contract_selection = "nearby"  # Options: "nearby", "volume", "oi"
 min_roll_days = 5
 target_leverage = 1.0
+roll_criteria = "volume"  # volume, oi (for smart_roll strategy)
+liquidity_threshold = 0.05  # 5% threshold to avoid ping-pong rolling
 
 # Basis timing parameters (only used when strategy_type = "basis_timing")
 basis_entry_threshold = -0.02   # Enter when basis < -2%

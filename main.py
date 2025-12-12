@@ -55,6 +55,8 @@ def run_backtest_from_config(config: Config):
             min_roll_days=cfg.strategy.min_roll_days,
             signal_price_field=cfg.backtest.signal_price_field,
             roll_criteria=cfg.strategy.roll_criteria,
+            liquidity_threshold=cfg.strategy.liquidity_threshold,
+            trading_calendar=data_handler.calendar,
         )
     elif cfg.strategy.strategy_type == "basis_timing":
         strategy = BasisTimingStrategy(
