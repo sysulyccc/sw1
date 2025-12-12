@@ -28,6 +28,8 @@ min_roll_days = 5
 target_leverage = 1.0
 roll_criteria = "volume"  # volume, oi (for smart_roll strategy)
 liquidity_threshold = 0.05  # 5% threshold to avoid ping-pong rolling
+position_mode = "notional"      # "notional" or "fixed_lot"
+fixed_lot_size = 1              # Used when position_mode = "fixed_lot"
 
 # Basis timing parameters (only used when strategy_type = "basis_timing")
 basis_entry_threshold = -0.02   # Enter when basis < -2%

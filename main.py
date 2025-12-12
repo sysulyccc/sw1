@@ -43,8 +43,11 @@ def run_backtest_from_config(config: Config):
             roll_days_before_expiry=cfg.strategy.roll_days_before_expiry,
             contract_selection=cfg.strategy.contract_selection,
             target_leverage=cfg.strategy.target_leverage,
+            position_mode=cfg.strategy.position_mode,
+            fixed_lot_size=cfg.strategy.fixed_lot_size,
             min_roll_days=cfg.strategy.min_roll_days,
             signal_price_field=cfg.backtest.signal_price_field,
+            trading_calendar=data_handler.calendar,
         )
     elif cfg.strategy.strategy_type == "smart_roll":
         strategy = SmartRollStrategy(
@@ -57,6 +60,8 @@ def run_backtest_from_config(config: Config):
             roll_criteria=cfg.strategy.roll_criteria,
             liquidity_threshold=cfg.strategy.liquidity_threshold,
             trading_calendar=data_handler.calendar,
+            position_mode=cfg.strategy.position_mode,
+            fixed_lot_size=cfg.strategy.fixed_lot_size,
         )
     elif cfg.strategy.strategy_type == "basis_timing":
         strategy = BasisTimingStrategy(
@@ -73,6 +78,9 @@ def run_backtest_from_config(config: Config):
             entry_percentile=cfg.strategy.entry_percentile,
             exit_percentile=cfg.strategy.exit_percentile,
             position_scale_by_basis=cfg.strategy.position_scale_by_basis,
+            position_mode=cfg.strategy.position_mode,
+            fixed_lot_size=cfg.strategy.fixed_lot_size,
+            trading_calendar=data_handler.calendar,
         )
     else:
         raise ValueError(f"Unknown strategy type: {cfg.strategy.strategy_type}")
@@ -106,6 +114,9 @@ def run_backtest_from_config(config: Config):
     # Save results
     if cfg.output.save_plots or cfg.output.save_trade_log or cfg.output.save_nav_series:
         run_name = f"{cfg.strategy.strategy_type}_{cfg.data.fut_code}"
+        # Avoid overwriting notional results when running fixed-lot experiments
+        if getattr(cfg.strategy, "position_mode", "notional") == "fixed_lot":
+            run_name = f"{run_name}_fixed{cfg.strategy.fixed_lot_size}lot"
         result.analyzer.save_all(
             output_dir=cfg.output.output_path,
             run_name=run_name,

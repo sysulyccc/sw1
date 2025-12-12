@@ -39,14 +39,20 @@ class BasisTimingStrategy(BaselineRollStrategy):
         entry_percentile: float = 0.2,          # Enter when basis < 20th percentile
         exit_percentile: float = 0.8,           # Exit when basis > 80th percentile
         position_scale_by_basis: bool = False,  # Scale position by basis depth
+        trading_calendar: Optional[List[date]] = None,  # Optional trading calendar for trading-day expiry
+        position_mode: str = "notional",
+        fixed_lot_size: int = 1,
     ):
         super().__init__(
-            contract_chain,
-            roll_days_before_expiry,
-            contract_selection,
-            target_leverage,
-            min_roll_days,
-            signal_price_field,
+            contract_chain=contract_chain,
+            roll_days_before_expiry=roll_days_before_expiry,
+            contract_selection=contract_selection,
+            target_leverage=target_leverage,
+            position_mode=position_mode,
+            fixed_lot_size=fixed_lot_size,
+            min_roll_days=min_roll_days,
+            signal_price_field=signal_price_field,
+            trading_calendar=trading_calendar,
         )
         
         self.basis_entry_threshold = basis_entry_threshold
@@ -192,10 +198,10 @@ class BasisTimingStrategy(BaselineRollStrategy):
             min_days=self.min_roll_days
         )
         
-        # Filter by liquidity
+        # Filter by liquidity using T-1 volume from SignalSnapshot to avoid lookahead
         liquid_contracts = [
             c for c in candidates
-            if c.get_volume(trade_date) >= min_liquidity_volume
+            if (snapshot.get_prev_volume(c.ts_code) or 0.0) >= min_liquidity_volume
         ]
         
         if not liquid_contracts:

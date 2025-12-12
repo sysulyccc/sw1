@@ -32,14 +32,19 @@ class SmartRollStrategy(BaselineRollStrategy):
         roll_criteria: Literal['volume', 'oi'] = 'volume', # Trigger criteria
         liquidity_threshold: float = 0.05,  # 5% threshold to avoid ping-pong rolling
         trading_calendar: Optional[List[date]] = None,  # Trading calendar for accurate day counting
+        position_mode: str = "notional",
+        fixed_lot_size: int = 1,
     ):
         super().__init__(
             contract_chain=contract_chain,
             roll_days_before_expiry=roll_days_before_expiry,
             contract_selection=contract_selection,
             target_leverage=target_leverage,
+            position_mode=position_mode,
+            fixed_lot_size=fixed_lot_size,
             min_roll_days=min_roll_days,
-            signal_price_field=signal_price_field
+            signal_price_field=signal_price_field,
+            trading_calendar=trading_calendar,
         )
         self.roll_criteria = roll_criteria
         self.liquidity_threshold = liquidity_threshold
