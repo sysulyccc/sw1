@@ -4,11 +4,13 @@ Tests for strategy layer (Layer 4).
 import pytest
 from datetime import date
 from pathlib import Path
+from unittest.mock import MagicMock
 
 from src.data.handler import DataHandler
 from src.account.account import Account
 from src.strategy.baseline_roll import BaselineRollStrategy
 from src.strategy.basis_timing import BasisTimingStrategy
+from src.data.signal_snapshot import SignalSnapshot
 
 
 class TestBaselineRollStrategy:
@@ -38,7 +40,7 @@ class TestBaselineRollStrategy:
         calendar = data_handler.get_trading_calendar()
         trade_date = calendar[100]  # Skip initial period
         
-        snapshot = data_handler.get_snapshot(trade_date)
+        snapshot = data_handler.get_signal_snapshot(trade_date)
         target = strategy.on_bar(snapshot, account)
         
         # Should have one position
@@ -58,7 +60,9 @@ class TestBaselineRollStrategy:
             test_date = date(delist.year, delist.month, delist.day - 2)
             
             if chain.get_active_contracts(test_date):
-                should_roll = strategy._should_roll(contract, test_date)
+                snapshot = MagicMock(spec=SignalSnapshot)
+                snapshot.trade_date = test_date
+                should_roll = strategy._should_roll(contract, snapshot)
                 assert should_roll is True
 
 

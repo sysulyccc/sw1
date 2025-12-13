@@ -2,7 +2,7 @@
 Baseline roll strategy - fixed-rule contract rolling.
 """
 from datetime import date
-from typing import Dict, Optional, Literal, List
+from typing import Dict, Optional, Literal
 from loguru import logger
 
 from ..domain.contract import FuturesContract
@@ -28,11 +28,8 @@ class BaselineRollStrategy(Strategy):
         roll_days_before_expiry: int = 2,
         contract_selection: Literal['nearby', 'next_nearby', 'volume', 'oi'] = 'nearby',
         target_leverage: float = 1.0,
-        position_mode: Literal['notional', 'fixed_lot'] = 'notional',
-        fixed_lot_size: int = 1,
         min_roll_days: int = 5,  # Minimum days to expiry for new contract
         signal_price_field: str = "open",  # Price field for signal calculation
-        trading_calendar: Optional[List[date]] = None,  # Optional trading calendar for trading-day expiry
     ):
         """
         Args:
@@ -51,10 +48,7 @@ class BaselineRollStrategy(Strategy):
         self.roll_days_before_expiry = roll_days_before_expiry
         self.contract_selection = contract_selection
         self.target_leverage = target_leverage
-        self.position_mode = position_mode
-        self.fixed_lot_size = fixed_lot_size
         self.min_roll_days = min_roll_days
-        self.trading_calendar = trading_calendar
         
         self._current_contract: Optional[FuturesContract] = None
     
@@ -123,19 +117,8 @@ class BaselineRollStrategy(Strategy):
     def _should_roll(self, contract: FuturesContract, snapshot: SignalSnapshot) -> bool:
         """Check if current contract should be rolled."""
         trade_date = snapshot.trade_date
-        days_to_expiry = self._trading_days_to_expiry(contract, trade_date)
+        days_to_expiry = self.contract_chain.trading_days_to_expiry(contract, trade_date)
         return days_to_expiry <= self.roll_days_before_expiry
-
-    def _trading_days_to_expiry(self, contract: FuturesContract, trade_date: date) -> int:
-        """Calculate trading days to expiry using optional trading calendar."""
-        if self.trading_calendar is None:
-            return contract.days_to_expiry(trade_date)
-        
-        count = 0
-        for d in self.trading_calendar:
-            if trade_date < d <= contract.delist_date:
-                count += 1
-        return count
     
     def _select_contract(self, snapshot: SignalSnapshot) -> Optional[FuturesContract]:
         """Select initial contract based on selection rule using T-1 liquidity when needed."""
@@ -201,17 +184,13 @@ class BaselineRollStrategy(Strategy):
         if price is None or price <= 0:
             return 0
         
-        # Fixed-lot mode: always use a constant number of contracts when in position
-        if self.position_mode == "fixed_lot":
-            return max(int(self.fixed_lot_size), 0)
-        
         target_notional = account.equity * self.target_leverage
         contract_value = price * contract.multiplier
         
         volume = int(target_notional / contract_value)
         
         return max(volume, 0)  # Long only
-    
+
     @property
     def current_contract(self) -> Optional[FuturesContract]:
         """Get the current holding contract."""
