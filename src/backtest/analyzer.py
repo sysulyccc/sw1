@@ -11,6 +11,7 @@ from matplotlib.gridspec import GridSpec
 
 from ..account.account import TradeRecord
 from ..config import TRADING_DAYS_PER_YEAR
+from .trade_log_plotter import TradeLogPlotter
 
 
 class Analyzer:
@@ -495,6 +496,13 @@ class Analyzer:
         # Save trade log
         if self.trade_log:
             self.export_trade_log(output_dir / "trade_log.csv")
+            TradeLogPlotter().plot_to_file(
+                nav_series=self.nav_series,
+                trade_log=self.trade_log,
+                output_path=output_dir / f"trade_log.{fmt}",
+                strategy_name=self.strategy_name,
+                dpi=dpi,
+            )
         
         # Save NAV series
         self.export_nav_series(output_dir / "nav_series.csv")

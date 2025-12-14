@@ -69,6 +69,8 @@ class StrategyConfig:
     entry_percentile: float = 0.2
     exit_percentile: float = 0.8
     position_scale_by_basis: bool = False
+    basis_use_prev_close: bool = False
+    neutral_hold_baseline: bool = False
 
 
 @dataclass

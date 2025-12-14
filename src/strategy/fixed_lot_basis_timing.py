@@ -24,6 +24,8 @@ class FixedLotBasisTimingStrategy(BasisTimingStrategy):
         use_percentile: bool = False,
         entry_percentile: float = 0.2,
         exit_percentile: float = 0.8,
+        basis_use_prev_close: bool = False,
+        neutral_hold_baseline: bool = False,
     ):
         super().__init__(
             contract_chain=contract_chain,
@@ -39,6 +41,8 @@ class FixedLotBasisTimingStrategy(BasisTimingStrategy):
             entry_percentile=entry_percentile,
             exit_percentile=exit_percentile,
             position_scale_by_basis=False,
+            basis_use_prev_close=basis_use_prev_close,
+            neutral_hold_baseline=neutral_hold_baseline,
         )
         self.position_mode = "fixed_lot"
         self.fixed_lot_size = fixed_lot_size

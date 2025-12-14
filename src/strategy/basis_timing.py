@@ -39,6 +39,8 @@ class BasisTimingStrategy(BaselineRollStrategy):
         entry_percentile: float = 0.2,          # Enter when basis < 20th percentile
         exit_percentile: float = 0.8,           # Exit when basis > 80th percentile
         position_scale_by_basis: bool = False,  # Scale position by basis depth
+        basis_use_prev_close: bool = False,
+        neutral_hold_baseline: bool = False,
     ):
         super().__init__(
             contract_chain=contract_chain,
@@ -56,6 +58,8 @@ class BasisTimingStrategy(BaselineRollStrategy):
         self.entry_percentile = entry_percentile
         self.exit_percentile = exit_percentile
         self.position_scale_by_basis = position_scale_by_basis
+        self.basis_use_prev_close = basis_use_prev_close
+        self.neutral_hold_baseline = neutral_hold_baseline
         
         # Basis history for percentile calculation
         self._basis_history: deque = deque(maxlen=lookback_window)
@@ -79,7 +83,13 @@ class BasisTimingStrategy(BaselineRollStrategy):
             return {}
         
         # Get the contract we're trading
-        ts_code = list(base_targets.keys())[0] if base_targets else None
+        ts_code: Optional[str] = None
+        for k, v in base_targets.items():
+            if v != 0:
+                ts_code = k
+                break
+        if ts_code is None:
+            ts_code = next(iter(base_targets.keys()), None)
         if ts_code is None:
             return {}
         
@@ -87,7 +97,7 @@ class BasisTimingStrategy(BaselineRollStrategy):
         
         # Calculate current basis using SignalSnapshot
         # This ensures we CANNOT use T-day close (lookahead bias prevention)
-        basis = snapshot.get_basis(ts_code, relative=True)
+        basis = snapshot.get_basis(ts_code, relative=True, use_prev_close=self.basis_use_prev_close)
         if basis is None:
             # No basis info, use base strategy
             return base_targets
@@ -118,6 +128,8 @@ class BasisTimingStrategy(BaselineRollStrategy):
                 target_positions[ts_code] = adjusted_volume
             else:
                 target_positions[ts_code] = 0  # Stay out
+                if self.neutral_hold_baseline:
+                    target_positions[ts_code] = base_volume
         
         # Handle rolling: if there's a close order for old contract
         for old_ts_code, vol in base_targets.items():
@@ -206,7 +218,7 @@ class BasisTimingStrategy(BaselineRollStrategy):
         best_basis = float('inf')
         
         for contract in liquid_contracts:
-            basis = snapshot.get_basis(contract.ts_code, relative=True)
+            basis = snapshot.get_basis(contract.ts_code, relative=True, use_prev_close=self.basis_use_prev_close)
             if basis is not None and basis < best_basis:
                 best_basis = basis
                 best_contract = contract

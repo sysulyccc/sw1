@@ -164,6 +164,38 @@ class TestAnalyzer:
         assert len(df) == 1
         assert df.iloc[0]['ts_code'] == "IC2001.CFX"
 
+    def test_save_all_generates_trade_log_plot(self, sample_data, tmp_path):
+        from src.account.account import TradeRecord
+
+        nav_series, benchmark_nav = sample_data
+        trade_log = [
+            TradeRecord(
+                trade_date=date(2020, 1, 2),
+                ts_code="IC2001.CFX",
+                direction="BUY",
+                volume=10,
+                price=5000.0,
+                amount=10_000_000.0,
+                commission=2300.0,
+                reason="OPEN",
+            ),
+            TradeRecord(
+                trade_date=date(2020, 2, 3),
+                ts_code="IC2001.CFX",
+                direction="SELL",
+                volume=5,
+                price=5100.0,
+                amount=5_100_000.0,
+                commission=1173.0,
+                reason="REBALANCE",
+            ),
+        ]
+
+        analyzer = Analyzer(nav_series, benchmark_nav, trade_log=trade_log, strategy_name="S")
+        analyzer.save_all(output_dir=tmp_path, run_name="run", dpi=50, fmt="png")
+
+        assert (tmp_path / "run" / "trade_log.png").exists()
+
 
 class TestConfig:
     """Tests for configuration."""

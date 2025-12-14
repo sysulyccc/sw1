@@ -104,6 +104,8 @@ def run_backtest_from_config(config: Config):
                 use_percentile=cfg.strategy.use_percentile,
                 entry_percentile=cfg.strategy.entry_percentile,
                 exit_percentile=cfg.strategy.exit_percentile,
+                basis_use_prev_close=cfg.strategy.basis_use_prev_close,
+                neutral_hold_baseline=cfg.strategy.neutral_hold_baseline,
             )
         else:
             strategy = BasisTimingStrategy(
@@ -120,6 +122,8 @@ def run_backtest_from_config(config: Config):
                 entry_percentile=cfg.strategy.entry_percentile,
                 exit_percentile=cfg.strategy.exit_percentile,
                 position_scale_by_basis=cfg.strategy.position_scale_by_basis,
+                basis_use_prev_close=cfg.strategy.basis_use_prev_close,
+                neutral_hold_baseline=cfg.strategy.neutral_hold_baseline,
             )
     else:
         raise ValueError(f"Unknown strategy type: {strategy_type}")

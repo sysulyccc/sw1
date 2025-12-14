@@ -99,5 +99,71 @@ class TestBasisTimingStrategy:
         assert strategy._get_timing_signal(-0.01) == "HOLD"
 
 
+def test_basis_timing_roll_day_uses_new_contract(monkeypatch):
+    base_targets = {"IC1907.CFX": 0, "IC1908.CFX": 10}
+
+    def _fake_baseline_on_bar(self, snapshot, account):
+        return base_targets
+
+    monkeypatch.setattr(BaselineRollStrategy, "on_bar", _fake_baseline_on_bar, raising=True)
+
+    strategy = BasisTimingStrategy(contract_chain=MagicMock())
+    snapshot = MagicMock(spec=SignalSnapshot)
+    snapshot.trade_date = date(2019, 7, 16)
+
+    def _fake_get_basis(ts_code: str, relative: bool = True):
+        if ts_code == "IC1908.CFX":
+            return -0.03
+        return -0.01
+
+    snapshot.get_basis.side_effect = _fake_get_basis
+
+    account = MagicMock(spec=Account)
+    target = strategy.on_bar(snapshot, account)
+
+    assert target.get("IC1907.CFX") == 0
+    assert target.get("IC1908.CFX") == 10
+
+
+def test_basis_timing_uses_prev_close_flag(monkeypatch):
+    base_targets = {"IC1908.CFX": 10}
+
+    def _fake_baseline_on_bar(self, snapshot, account):
+        return base_targets
+
+    monkeypatch.setattr(BaselineRollStrategy, "on_bar", _fake_baseline_on_bar, raising=True)
+
+    strategy = BasisTimingStrategy(contract_chain=MagicMock(), basis_use_prev_close=True)
+    snapshot = MagicMock(spec=SignalSnapshot)
+    snapshot.trade_date = date(2019, 7, 16)
+    snapshot.get_basis.return_value = -0.03
+
+    account = MagicMock(spec=Account)
+    strategy.on_bar(snapshot, account)
+
+    assert snapshot.get_basis.call_count >= 1
+    _, kwargs = snapshot.get_basis.call_args
+    assert kwargs.get("use_prev_close") is True
+
+
+def test_basis_timing_neutral_hold_baseline(monkeypatch):
+    base_targets = {"IC1908.CFX": 10}
+
+    def _fake_baseline_on_bar(self, snapshot, account):
+        return base_targets
+
+    monkeypatch.setattr(BaselineRollStrategy, "on_bar", _fake_baseline_on_bar, raising=True)
+
+    strategy = BasisTimingStrategy(contract_chain=MagicMock(), neutral_hold_baseline=True)
+    snapshot = MagicMock(spec=SignalSnapshot)
+    snapshot.trade_date = date(2019, 7, 16)
+    snapshot.get_basis.return_value = -0.01
+
+    account = MagicMock(spec=Account)
+    target = strategy.on_bar(snapshot, account)
+
+    assert target.get("IC1908.CFX") == 10
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
