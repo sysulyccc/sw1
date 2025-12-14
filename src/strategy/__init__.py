@@ -3,10 +3,16 @@ Strategy Layer: Trading strategies for index enhancement.
 """
 from .base import Strategy
 from .baseline_roll import BaselineRollStrategy
-from .basis_timing import BasisTimingStrategy
+from .BasisTimingRollStrategy import BasisTimingRollStrategy
+from .LiquidityRollStrategy import LiquidityRollStrategy
+from .SpreadTimingRollStrategy import SpreadTimingRollStrategy
+from .AERYRollStrategy import AERYRollStrategy
 
 __all__ = [
     "Strategy",
     "BaselineRollStrategy",
-    "BasisTimingStrategy",
+    "BasisTimingRollStrategy",
+    "LiquidityRollStrategy",
+    "SpreadTimingRollStrategy",
+    "AERYRollStrategy"
 ]
