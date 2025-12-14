@@ -73,7 +73,7 @@ class BaselineRollStrategy(Strategy):
         
         if not holding_contracts:
             # No position - select initial contract
-            contract = self._select_contract(trade_date)
+            contract = self._select_contract(snapshot)
             if contract is None:
                 logger.warning(f"No tradable contract on {trade_date}")
                 return {}
@@ -93,7 +93,7 @@ class BaselineRollStrategy(Strategy):
             
             if self._should_roll(current_contract, snapshot):
                 # Roll to new contract
-                new_contract = self._select_roll_target(trade_date, current_contract)
+                new_contract = self._select_roll_target(snapshot, current_contract)
                 if new_contract is None:
                     logger.warning(f"No roll target found on {trade_date}")
                     # Keep current position
@@ -117,36 +117,40 @@ class BaselineRollStrategy(Strategy):
     def _should_roll(self, contract: FuturesContract, snapshot: SignalSnapshot) -> bool:
         """Check if current contract should be rolled."""
         trade_date = snapshot.trade_date
-        days_to_expiry = contract.days_to_expiry(trade_date)
+        days_to_expiry = self.contract_chain.trading_days_to_expiry(contract, trade_date)
         return days_to_expiry <= self.roll_days_before_expiry
     
-    def _select_contract(self, trade_date: date) -> Optional[FuturesContract]:
-        """Select initial contract based on selection rule."""
+    def _select_contract(self, snapshot: SignalSnapshot) -> Optional[FuturesContract]:
+        """Select initial contract based on selection rule using T-1 liquidity when needed."""
+        trade_date = snapshot.trade_date
+        
         if self.contract_selection == 'nearby':
             return self.contract_chain.get_main_contract(trade_date, rule='nearby')
         elif self.contract_selection == 'next_nearby':
             contracts = self.contract_chain.get_nearby_contracts(trade_date, k=2)
             return contracts[1] if len(contracts) > 1 else (contracts[0] if contracts else None)
-        elif self.contract_selection == 'volume':
-            return self.contract_chain.get_main_contract(trade_date, rule='volume')
-        elif self.contract_selection == 'oi':
-            return self.contract_chain.get_main_contract(trade_date, rule='oi')
+        elif self.contract_selection in ('volume', 'oi'):
+            active = self.contract_chain.get_active_contracts(trade_date)
+            if not active:
+                return None
+            if self.contract_selection == 'volume':
+                return max(active, key=lambda c: snapshot.get_prev_volume(c.ts_code) or 0.0)
+            else:
+                return max(active, key=lambda c: snapshot.get_prev_oi(c.ts_code) or 0.0)
         else:
             return self.contract_chain.get_main_contract(trade_date, rule='nearby')
     
     def _select_roll_target(
         self,
-        trade_date: date,
+        snapshot: SignalSnapshot,
         current_contract: FuturesContract
     ) -> Optional[FuturesContract]:
         """
         Select target contract for rolling.
         Excludes the current contract and contracts expiring too soon.
         """
-        candidates = self.contract_chain.get_contracts_expiring_after(
-            trade_date,
-            min_days=self.min_roll_days
-        )
+        trade_date = snapshot.trade_date
+        candidates = self.contract_chain.get_contracts_expiring_after(trade_date, min_days=self.min_roll_days)
         
         # Exclude current contract
         candidates = [c for c in candidates if c.ts_code != current_contract.ts_code]
@@ -159,9 +163,9 @@ class BaselineRollStrategy(Strategy):
         elif self.contract_selection == 'next_nearby':
             return candidates[1]  # For roll, take nearest among valid
         elif self.contract_selection == 'volume':
-            return max(candidates, key=lambda c: c.get_volume(trade_date))
+            return max(candidates, key=lambda c: snapshot.get_prev_volume(c.ts_code) or 0.0)
         elif self.contract_selection == 'oi':
-            return max(candidates, key=lambda c: c.get_open_interest(trade_date))
+            return max(candidates, key=lambda c: snapshot.get_prev_oi(c.ts_code) or 0.0)
         else:
             return candidates[0]
     
@@ -186,7 +190,7 @@ class BaselineRollStrategy(Strategy):
         volume = int(target_notional / contract_value)
         
         return max(volume, 0)  # Long only
-    
+
     @property
     def current_contract(self) -> Optional[FuturesContract]:
         """Get the current holding contract."""

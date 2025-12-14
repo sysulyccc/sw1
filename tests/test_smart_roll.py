@@ -20,6 +20,8 @@ class TestSmartRollStrategy:
         c2 = FuturesContract("IC2402.CFX", "IC", 200, date(2023,2,1), date(2024,2,16))
         
         chain.get_contracts_expiring_after.return_value = [c2]
+
+        chain.trading_days_to_expiry.return_value = 10
         
         # Init strategy
         strat = SmartRollStrategy(
@@ -40,6 +42,8 @@ class TestSmartRollStrategy:
         # Mock snapshot
         snapshot = MagicMock(spec=SignalSnapshot)
         snapshot.trade_date = trade_date
+        snapshot.get_basis.side_effect = lambda code, relative=True: -0.02 if code == "IC2401.CFX" else -0.03
+        strategy.contract_chain.trading_days_to_expiry.return_value = 10
         
         # Case 1: Current Volume > Candidate Volume -> NO ROLL
         snapshot.get_prev_volume.side_effect = lambda code: 10000 if code == "IC2401.CFX" else 5000
@@ -60,6 +64,9 @@ class TestSmartRollStrategy:
         
         snapshot = MagicMock(spec=SignalSnapshot)
         snapshot.trade_date = trade_date
+
+        strategy.contract_chain.trading_days_to_expiry.return_value = 0
+        snapshot.get_basis.side_effect = lambda code, relative=True: -0.02 if code == "IC2401.CFX" else -0.03
         
         # Even if Candidate Volume < Current Volume
         snapshot.get_prev_volume.side_effect = lambda code: 10000 if code == "IC2401.CFX" else 100
@@ -74,6 +81,7 @@ class TestSmartRollStrategy:
         
         snapshot = MagicMock(spec=SignalSnapshot)
         snapshot.trade_date = trade_date
+        snapshot.get_basis.side_effect = lambda code, relative=True: -0.02 if code == "IC2401.CFX" else -0.03
         
         # Case 1: Current OI > Candidate OI -> NO ROLL
         snapshot.get_prev_oi.side_effect = lambda code: 50000 if code == "IC2401.CFX" else 10000

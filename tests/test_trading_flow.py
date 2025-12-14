@@ -10,6 +10,7 @@ from src.data.signal_snapshot import SignalSnapshot
 from src.data.snapshot import MarketSnapshot
 from src.domain.contract import FuturesContract
 from src.domain.bars import FuturesDailyBar, IndexDailyBar
+from src.backtest.nav_tracker import FixedLotNormalizedNavTracker
 
 class TestTradingFlow:
     """
@@ -151,6 +152,42 @@ class TestTradingFlow:
         # Position last_settle should be updated to today's settle
         assert pos.last_settle == 5050.0
 
+    def test_fixed_lot_normalized_nav(self, engine, mock_data_handler):
+        trade_date = date(2024, 1, 5)
+        ts_code = "IC2401.CFX"
+
+        engine.strategy.position_mode = "fixed_lot"
+
+        signal_snap = MagicMock(spec=SignalSnapshot)
+        signal_snap.trade_date = trade_date
+        signal_snap.get_futures_price.return_value = 5000.0
+        mock_data_handler.get_signal_snapshot.return_value = signal_snap
+
+        market_snap = MagicMock(spec=MarketSnapshot)
+        market_snap.trade_date = trade_date
+
+        mock_bar = MagicMock(spec=FuturesDailyBar)
+        mock_bar.settle = 5050.0
+        market_snap.futures_quotes = {ts_code: mock_bar}
+
+        contract = mock_data_handler.contract_chain.contracts[ts_code]
+        contract.get_price = MagicMock(return_value=5050.0)
+        mock_data_handler.get_snapshot.return_value = market_snap
+
+        engine.strategy.on_bar.return_value = {ts_code: 1}
+
+        engine._process_day(trade_date, mock_data_handler.contract_chain.contracts)
+
+        base = 5000.0 * 1 * 200.0
+        commission = base * 0.00023
+        daily_pnl = (5050.0 - 5000.0) * 1 * 200.0
+        expected_nav = (base - commission + daily_pnl) / base
+
+        assert isinstance(engine._nav_tracker, FixedLotNormalizedNavTracker)
+        assert engine._nav_tracker.notional_base == base
+        assert trade_date in engine._nav_tracker.nav_history
+        assert abs(engine._nav_tracker.nav_history[trade_date] - expected_nav) < 1e-12
+
     def test_roll_logic_execution(self, engine, mock_data_handler):
         """
         Verify rolling logic:
@@ -183,6 +220,12 @@ class TestTradingFlow:
         )
         engine.account.positions[old_code].last_settle = 4950.0
         engine.account.cash = 1_000_000.0 # Reset cash for clarity
+
+        engine.strategy.position_mode = "fixed_lot"
+        engine._nav_tracker = FixedLotNormalizedNavTracker()
+        engine._nav_tracker.reset()
+        engine._nav_tracker._notional_base = 4900.0 * 1 * 200.0
+        engine._nav_tracker._equity = engine._nav_tracker._notional_base
         
         # Setup Signal Snapshot (Morning)
         # Old Open: 5000 (Gap up from 4950)
@@ -261,5 +304,16 @@ class TestTradingFlow:
         
         # This assertion verifies if the PnL from closing the old position was added to cash
         assert abs(engine.account.cash - expected_cash) < 1e-6
+
+        base = 4900.0 * 1 * 200.0
+        pnl_settle_old_to_open = (5000.0 - 4950.0) * 1 * 200.0
+        commission_old_norm = 5000.0 * 1 * 200.0 * 0.00023
+        commission_new_norm = 5100.0 * 1 * 200.0 * 0.00023
+        pnl_hold_new_norm = (5120.0 - 5100.0) * 1 * 200.0
+        expected_norm_nav = (base + pnl_settle_old_to_open - commission_old_norm - commission_new_norm + pnl_hold_new_norm) / base
+
+        assert isinstance(engine._nav_tracker, FixedLotNormalizedNavTracker)
+        assert trade_date in engine._nav_tracker.nav_history
+        assert abs(engine._nav_tracker.nav_history[trade_date] - expected_norm_nav) < 1e-12
  
 

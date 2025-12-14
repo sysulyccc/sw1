@@ -11,6 +11,7 @@ from matplotlib.gridspec import GridSpec
 
 from ..account.account import TradeRecord
 from ..config import TRADING_DAYS_PER_YEAR
+from .trade_log_plotter import TradeLogPlotter
 
 
 class Analyzer:
@@ -93,6 +94,15 @@ class Analyzer:
         win_rate = (strategy_returns > 0).mean()
         calmar = ann_return / abs(max_dd) if max_dd != 0 else 0
         
+        # === Excess Return Metrics (for Index Enhancement) ===
+        excess_nav = self.nav_series / self.benchmark_nav
+        excess_cummax = excess_nav.cummax()
+        excess_drawdown = (excess_nav - excess_cummax) / excess_cummax
+        excess_max_dd = excess_drawdown.min()
+        
+        excess_win_rate = (excess_returns > 0).mean()
+        excess_calmar = alpha / abs(excess_max_dd) if excess_max_dd != 0 else 0
+        
         return {
             "total_return": total_return,
             "annualized_return": ann_return,
@@ -110,6 +120,10 @@ class Analyzer:
             "trading_days": n_days,
             "start_date": str(self.nav_series.index[0].date()),
             "end_date": str(self.nav_series.index[-1].date()),
+            # Excess return metrics
+            "excess_max_drawdown": excess_max_dd,
+            "excess_win_rate": excess_win_rate,
+            "excess_calmar": excess_calmar,
         }
     
     def get_metrics_dataframe(self) -> pd.DataFrame:
@@ -124,7 +138,7 @@ class Analyzer:
             ("Total Return", f"{m['total_return']:.2%}"),
             ("Annualized Return", f"{m['annualized_return']:.2%}"),
             ("Annualized Volatility", f"{m['annualized_volatility']:.2%}"),
-            ("Sharpe Ratio", f"{m['sharpe_ratio']:.2f}"),
+            ("Sharpe Ratio*", f"{m['sharpe_ratio']:.2f}"),
             ("Max Drawdown", f"{m['max_drawdown']:.2%}"),
             ("Calmar Ratio", f"{m['calmar_ratio']:.2f}"),
             ("Win Rate (Daily)", f"{m['win_rate']:.2%}"),
@@ -133,13 +147,19 @@ class Analyzer:
             ("Ann. Return", f"{m['benchmark_return']:.2%}"),
             ("Ann. Volatility", f"{m['benchmark_volatility']:.2%}"),
             ("", ""),
-            ("Relative Performance", ""),
-            ("Alpha", f"{m['alpha']:.2%}"),
+            ("Excess Performance (Alpha)", ""),
+            ("Alpha (Ann.)", f"{m['alpha']:.2%}"),
             ("Tracking Error", f"{m['tracking_error']:.2%}"),
-            ("Information Ratio", f"{m['information_ratio']:.2f}"),
+            ("Information Ratio**", f"{m['information_ratio']:.2f}"),
+            ("Excess Max Drawdown", f"{m['excess_max_drawdown']:.2%}"),
+            ("Excess Win Rate", f"{m['excess_win_rate']:.2%}"),
+            ("Excess Calmar", f"{m['excess_calmar']:.2f}"),
             ("", ""),
             ("Trading", ""),
             ("Total Trades", f"{m['total_trades']:.0f}"),
+            ("", ""),
+            ("* Sharpe = (Ann.Return - Rf) / Vol", f"Rf = {self.risk_free_rate:.1%}"),
+            ("** IR = Alpha / Tracking Error", ""),
         ]
         
         return pd.DataFrame(data, columns=["Metric", "Value"])
@@ -219,19 +239,21 @@ class Analyzer:
         m = self.compute_metrics()
         
         cell_text = [
+            ["── Strategy ──", ""],
             ["Total Return", f"{m['total_return']:.2%}"],
             ["Ann. Return", f"{m['annualized_return']:.2%}"],
             ["Ann. Volatility", f"{m['annualized_volatility']:.2%}"],
-            ["Sharpe Ratio", f"{m['sharpe_ratio']:.2f}"],
+            ["Sharpe*", f"{m['sharpe_ratio']:.2f}"],
             ["Max Drawdown", f"{m['max_drawdown']:.2%}"],
-            ["Calmar Ratio", f"{m['calmar_ratio']:.2f}"],
-            ["", ""],
+            ["── Benchmark ──", ""],
             ["Benchmark Return", f"{m['benchmark_return']:.2%}"],
-            ["Alpha", f"{m['alpha']:.2%}"],
-            ["Info Ratio", f"{m['information_ratio']:.2f}"],
+            ["── Excess (Alpha) ──", ""],
+            ["Alpha (Ann.)", f"{m['alpha']:.2%}"],
             ["Tracking Error", f"{m['tracking_error']:.2%}"],
-            ["", ""],
-            ["Trading Days", f"{m['trading_days']:.0f}"],
+            ["Info Ratio**", f"{m['information_ratio']:.2f}"],
+            ["Excess Max DD", f"{m['excess_max_drawdown']:.2%}"],
+            ["Excess Win Rate", f"{m['excess_win_rate']:.2%}"],
+            ["── Trading ──", ""],
             ["Total Trades", f"{m['total_trades']:.0f}"],
         ]
         
@@ -251,14 +273,28 @@ class Analyzer:
             table[(0, j)].set_facecolor('#4472C4')
             table[(0, j)].set_text_props(color='white', fontweight='bold')
         
+        # Style section headers (rows with "──")
+        for i in range(1, len(cell_text) + 1):
+            if cell_text[i-1][0].startswith("──"):
+                table[(i, 0)].set_text_props(fontweight='bold', color='#2E86AB')
+                table[(i, 1)].set_text_props(fontweight='bold')
+        
         ax.set_title('Performance Metrics', fontweight='bold', pad=20)
+        
+        # Add formula notes below table
+        rf = self.risk_free_rate
+        ax.text(0.5, -0.05, 
+                f"* Sharpe = (Ann.Return - Rf) / Ann.Vol, Rf={rf:.1%}\n"
+                f"** Info Ratio = Alpha / Tracking Error",
+                transform=ax.transAxes, fontsize=8, ha='center', va='top',
+                style='italic', color='gray')
     
     def _plot_excess_nav(self, ax: plt.Axes) -> None:
-        """Plot excess NAV (strategy / benchmark)."""
+        """Plot excess NAV (strategy / benchmark) with drawdown overlay."""
         excess_nav = self.nav_series / self.benchmark_nav
         
         ax.plot(excess_nav.index, excess_nav.values,
-                linewidth=1.5, color='#28A745')
+                linewidth=1.5, color='#28A745', label='Excess NAV')
         ax.axhline(y=1.0, color='gray', linestyle='--', alpha=0.5)
         ax.fill_between(
             excess_nav.index,
@@ -277,9 +313,21 @@ class Analyzer:
             color='red'
         )
         
+        # Add excess drawdown on secondary axis
+        excess_cummax = excess_nav.cummax()
+        excess_dd = (excess_nav - excess_cummax) / excess_cummax
+        
+        ax2 = ax.twinx()
+        ax2.fill_between(excess_dd.index, excess_dd.values, 0,
+                         alpha=0.2, color='orange', label='Excess DD')
+        ax2.set_ylabel('Excess Drawdown', color='orange')
+        ax2.tick_params(axis='y', labelcolor='orange')
+        ax2.set_ylim(excess_dd.min() * 1.5, 0.1)
+        
         ax.set_xlabel('Date')
         ax.set_ylabel('Excess NAV')
-        ax.set_title(f'Cumulative Excess Return ({self.strategy_name} / {self.benchmark_name})')
+        ax.set_title(f'Excess Return with Drawdown (Max DD: {excess_dd.min():.2%})')
+        ax.legend(loc='upper left')
         ax.grid(True, alpha=0.3)
     
     def _plot_yearly_returns(self, ax: plt.Axes) -> None:
@@ -366,11 +414,14 @@ class Analyzer:
             f"  Annualized Return:     {m['benchmark_return']:.2%}",
             f"  Annualized Volatility: {m['benchmark_volatility']:.2%}",
             "",
-            "Relative Performance:",
+            "Excess Performance (Alpha):",
             "-" * 40,
-            f"  Alpha (Excess Return): {m['alpha']:.2%}",
+            f"  Alpha (Ann.):          {m['alpha']:.2%}",
             f"  Tracking Error:        {m['tracking_error']:.2%}",
             f"  Information Ratio:     {m['information_ratio']:.2f}",
+            f"  Excess Max Drawdown:   {m['excess_max_drawdown']:.2%}",
+            f"  Excess Win Rate:       {m['excess_win_rate']:.2%}",
+            f"  Excess Calmar:         {m['excess_calmar']:.2f}",
             "",
             "Trading Statistics:",
             "-" * 40,
@@ -445,6 +496,13 @@ class Analyzer:
         # Save trade log
         if self.trade_log:
             self.export_trade_log(output_dir / "trade_log.csv")
+            TradeLogPlotter().plot_to_file(
+                nav_series=self.nav_series,
+                trade_log=self.trade_log,
+                output_path=output_dir / f"trade_log.{fmt}",
+                strategy_name=self.strategy_name,
+                dpi=dpi,
+            )
         
         # Save NAV series
         self.export_nav_series(output_dir / "nav_series.csv")
