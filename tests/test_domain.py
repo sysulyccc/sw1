@@ -187,6 +187,24 @@ class TestContractChain:
         assert len(nearby) == 2
         assert nearby[0].ts_code == "IC2401.CFX"  # Nearest expiry
 
+    def test_trading_days_to_expiry_anchored_at_last_tradable_day(self, sample_chain):
+        calendar = [
+            date(2024, 1, 15),
+            date(2024, 1, 16),
+            date(2024, 1, 17),
+            date(2024, 1, 18),
+            date(2024, 1, 19),
+        ]
+        sample_chain.set_trading_calendar(calendar)
+
+        contract = sample_chain.get_contract("IC2401.CFX")
+        assert contract is not None
+
+        assert sample_chain.trading_days_to_expiry(contract, date(2024, 1, 15)) == 3
+        assert sample_chain.trading_days_to_expiry(contract, date(2024, 1, 16)) == 2
+        assert sample_chain.trading_days_to_expiry(contract, date(2024, 1, 17)) == 1
+        assert sample_chain.trading_days_to_expiry(contract, date(2024, 1, 18)) == 0
+
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

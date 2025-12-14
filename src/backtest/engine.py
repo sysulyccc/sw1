@@ -13,6 +13,7 @@ from ..strategy.base import Strategy
 from ..account.account import Account
 from ..config import TRADING_DAYS_PER_YEAR
 from .analyzer import Analyzer
+from .nav_tracker import NavTracker, create_nav_tracker
 
 
 @dataclass
@@ -67,6 +68,14 @@ class BacktestEngine:
         
         self.account: Optional[Account] = None
         self.analyzer: Optional[Analyzer] = None
+
+        self._nav_tracker: Optional[NavTracker] = None
+
+    def _ensure_nav_tracker(self) -> NavTracker:
+        desired = create_nav_tracker(self.strategy)
+        if self._nav_tracker is None or type(self._nav_tracker) is not type(desired):
+            self._nav_tracker = desired
+        return self._nav_tracker
     
     def run(
         self,
@@ -105,19 +114,25 @@ class BacktestEngine:
         
         # Get contract lookup for trade execution
         contracts = self.data_handler.contract_chain.contracts
+
+        nav_tracker = self._ensure_nav_tracker()
+        nav_tracker.reset()
         
         # Main backtest loop
         for i, trade_date in enumerate(calendar):
             self._process_day(trade_date, contracts)
             
             if verbose and (i + 1) % 100 == 0:
-                logger.info(f"Processed {i + 1}/{len(calendar)} days, NAV: {self.account.nav:.4f}")
+                nav_for_log = nav_tracker.get_nav_for_date(trade_date, self.account.nav)
+                logger.info(f"Processed {i + 1}/{len(calendar)} days, NAV: {nav_for_log:.4f}")
         
         # Build analyzer
         benchmark_nav = self.data_handler.index.get_nav_series(start_date, end_date)
+
+        nav_series = nav_tracker.get_nav_series(self.account.get_nav_series())
         
         self.analyzer = Analyzer(
-            nav_series=self.account.get_nav_series(),
+            nav_series=nav_series,
             benchmark_nav=benchmark_nav,
             trade_log=self.account.trade_log,
             strategy_name=self.strategy_name,
@@ -130,11 +145,12 @@ class BacktestEngine:
         metrics = self.analyzer.compute_metrics()
         
         if verbose:
-            logger.info(f"Backtest completed. Final NAV: {self.account.nav:.4f}")
+            final_nav_for_log = nav_tracker.get_nav_for_date(calendar[-1], self.account.nav)
+            logger.info(f"Backtest completed. Final NAV: {final_nav_for_log:.4f}")
             self._print_summary(metrics)
         
         return BacktestResult(
-            nav_series=self.account.get_nav_series(),
+            nav_series=nav_series,
             benchmark_nav=benchmark_nav,
             trade_summary=self.account.get_trade_summary(),
             metrics=metrics,
@@ -175,15 +191,26 @@ class BacktestEngine:
         # Strategy generates signal using ONLY SignalSnapshot
         # CANNOT access T-day close, settle, volume, oi, index close
         target_positions = self.strategy.on_bar(signal_snapshot, self.account)
+
+        nav_tracker = self._ensure_nav_tracker()
+        nav_tracker.on_pre_trade(
+            signal_snapshot=signal_snapshot,
+            account=self.account,
+            target_positions=target_positions,
+            contracts=contracts,
+            execution_price_field=self.execution_price_field,
+        )
         
         # Execute trades at open price
         # Note: We need execution prices from signal_snapshot (open/pre_settle)
-        self.account.rebalance_to_target(
+        total_commission = self.account.rebalance_to_target(
             target_positions,
             signal_snapshot,  # Use SignalSnapshot for execution too (SOLID principle)
             contracts,
             reason="STRATEGY"
         )
+
+        nav_tracker.on_post_trade(total_commission)
         
         # ============ Close (15:00 后) ============
         
@@ -194,10 +221,12 @@ class BacktestEngine:
         
         # Mark-to-market: settle today's PnL using T-day settle price
         # PnL = (settle(T) - settle(T-1)) * volume * multiplier
-        self.account.mark_to_market(full_snapshot)
+        daily_pnl = self.account.mark_to_market(full_snapshot)
         
         # Record NAV (valued at settle price)
         self.account.record_nav(trade_date)
+
+        nav_tracker.on_settlement(trade_date, daily_pnl)
     
     def _print_summary(self, metrics: Dict[str, float]) -> None:
         """Print backtest summary."""

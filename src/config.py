@@ -57,26 +57,30 @@ class StrategyConfig:
     min_roll_days: int = 5
     target_leverage: float = 1.0
     roll_criteria: str = "volume"  # volume, oi (for smart_roll strategy)
+    liquidity_threshold: float = 0.05  # 5% threshold to avoid ping-pong rolling
+    position_mode: str = "notional"  # "notional" or "fixed_lot"
+    fixed_lot_size: int = 1
     
-    # Basis timing parameters
-    roll_window_start = 15            # Start of timing window (days)
-    hard_roll_days = 1                # Forced roll threshold
-    history_window = 60               # Basis lookback window
-    basis_threshold_percentile = 70   # Roll if basis >= this percentile
+    # HEAD branch: Basis timing roll parameters
+    roll_window_start: int = 15            # Start of timing window (days)
+    hard_roll_days: int = 1                # Forced roll threshold
+    history_window: int = 60               # Basis lookback window
+    basis_threshold_percentile: int = 70   # Roll if basis >= this percentile
     
-    # Spread timing parameters
-    roll_window_start = 15            # Start of timing window (days)
-    hard_roll_days = 2                # Forced roll threshold
-    history_window = 90               # Spread lookback window
-    spread_threshold_percentile = 30  # Roll if spread <= this percentile
+    # HEAD branch: Spread timing parameters
+    spread_threshold_percentile: int = 30  # Roll if spread <= this percentile
     
-    # liquidity_roll parameters
-    roll_days_before_expiry = 1   # Safety net
-    roll_criteria = "volume"      # Options: "volume", "oi"
-    
-    # aery_roll parameters
-    roll_days_before_expiry = 2        # Fixed roll trigger
-    min_roll_days = 5
+    # PR branch: Basis timing parameters (only for basis_timing strategy)
+    basis_entry_threshold: float = -0.02  # -2%
+    basis_exit_threshold: float = 0.005   # +0.5%
+    lookback_window: int = 60
+    use_percentile: bool = False
+    entry_percentile: float = 0.2
+    exit_percentile: float = 0.8
+    position_scale_by_basis: bool = False
+    basis_use_prev_close: bool = False
+    neutral_hold_baseline: bool = False
+
 
 @dataclass
 class BacktestConfig:

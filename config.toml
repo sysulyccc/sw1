@@ -19,10 +19,14 @@ strategy_type = "baseline"  # Options: "baseline" or "basis_timing" or "spread_t
 strategy_name = "Baseline Roll Strategy"
 
 # Roll parameters
-roll_days_before_expiry = 1  # Safety net for smart roll
+roll_days_before_expiry = 2  # Safety net for smart roll (trading days, not calendar days)
 contract_selection = "nearby"  # Options: "nearby", "volume", "oi"
 min_roll_days = 5
 target_leverage = 1.0
+roll_criteria = "volume"  # volume, oi (for smart_roll strategy)
+liquidity_threshold = 0.05  # 5% threshold to avoid ping-pong rolling
+position_mode = "notional"      # "notional" or "fixed_lot"
+fixed_lot_size = 1              # Used when position_mode = "fixed_lot"
 
 # Basis timing parameters
 roll_window_start = 15            # Start of timing window (days)

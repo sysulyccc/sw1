@@ -88,6 +88,8 @@ class DataHandler:
         
         calendar = sorted(index_dates & futures_dates)
         logger.info(f"Trading calendar: {calendar[0]} to {calendar[-1]}, {len(calendar)} days")
+
+        contract_chain.set_trading_calendar(calendar)
         
         # Load margin rates
         margin_rates = cls._load_margin_rates(data_path, fut_code)
