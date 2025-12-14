@@ -1,72 +1,39 @@
 # Index Enhancement Strategy Backtest System
 
+## Quick Start
+
+```bash
+# Run backtest with a strategy
+bash run.sh baseline              # Baseline strategy
+bash run.sh fixed_lot_baseline    # Fixed lot version
+bash run.sh basis_timing_roll     # Basis timing roll
+
+# List all available strategies
+bash run.sh
+
+# Run all strategies
+bash run_all.sh
+```
+
+**Available strategies:**
+- `baseline`, `smart_roll`, `basis_timing`, `basis_timing_roll`, `spread_timing`, `liquidity_roll`, `aery_roll`
+- Fixed lot versions: `fixed_lot_baseline`, `fixed_lot_smart_roll`, `fixed_lot_basis_timing`, `fixed_lot_basis_timing_roll`, `fixed_lot_spread_timing`, `fixed_lot_liquidity_roll`, `fixed_lot_aery_roll`
+
+Strategy configs are in `configs/strategies/`. Edit them to customize parameters (e.g., `fut_code`, `start_date`).
+
+---
+
 ## Project Overview
 
 This is an OOP-based backtest system for equity index futures enhancement strategies. It captures excess returns over the benchmark by leveraging the tendency of a discounted futures price to converge to the spot index level as the contract approaches expiration.
-
-## System Architecture
-
-The system follows a 5-layer architecture:
-
-```
-+------------------------------------------------------------+
-| Layer 5: Backtest & Analytics                              |
-|   BacktestEngine, Analyzer                                 |
-+------------------------------------------------------------+
-| Layer 4: Strategy                                          |
-|   Strategy (ABC), BaselineRollStrategy, BasisTimingStrategy|
-+------------------------------------------------------------+
-| Layer 3: Account & Portfolio                               |
-|   Account, Position, TradeRecord                           |
-+------------------------------------------------------------+
-| Layer 2: Data & Snapshot                                   |
-|   DataHandler, MarketSnapshot                              |
-+------------------------------------------------------------+
-| Layer 1: Domain / Instrument                               |
-|   EquityIndex, FuturesContract, ContractChain, DailyBars   |
-+------------------------------------------------------------+
-```
-
-## Project Structure
-
-```
-sw1/
-├── config.toml                # Configuration file (editable)
-├── main.py                    # Main entry point
-├── docs/
-│   ├── DESIGN.md              # Detailed design document
-│   ├── BACKTEST_FLOW.md       # Step-by-step backtest flow
-│   └── uml_class_diagram.puml # UML class diagram (PlantUML)
-├── examples/                  # Interactive Jupyter notebooks
-│   ├── 01_quick_start.ipynb   # Basic usage demo
-│   ├── 02_explore_contracts.ipynb  # Explore domain objects
-│   └── 03_compare_strategies.ipynb # Compare strategies
-├── src/
-│   ├── config.py              # Configuration management
-│   ├── domain/                # Layer 1: Domain objects
-│   ├── data/                  # Layer 2: Data handling
-│   ├── account/               # Layer 3: Portfolio management
-│   ├── strategy/              # Layer 4: Trading strategies
-│   └── backtest/              # Layer 5: Backtest engine
-├── tests/                     # Unit tests (42 tests)
-├── scripts/
-│   └── preprocess_data.py     # Data preprocessing script
-├── output/                    # Backtest output
-│   └── {strategy}_{fut}/      # Per-run outputs
-│       ├── report.png         # Comprehensive visual report
-│       ├── trade_log.csv      # Trade records
-│       ├── nav_series.csv     # Daily NAV values
-│       └── metrics.csv        # Performance metrics
-├── processed_data/            # Processed parquet files
-└── raw_data/                  # Original data files
-```
 
 ## Quick Start
 
 ### 1. Preprocess Data
 
 ```bash
-python scripts/preprocess_data.py
+python scripts/filesync_client.py # get data from filesync
+python scripts/preprocess_data_from_wind.py
 ```
 
 ### 2. Configure Strategy
@@ -94,62 +61,6 @@ Results are saved to `output/{strategy}_{fut}/`:
 
 ```bash
 pytest tests/ -v  # 42 tests
-```
-
-## Key Classes
-
-### FuturesContract (Core Domain Object)
-
-Each futures contract is represented as an object with:
-- Metadata: `ts_code`, `fut_code`, `multiplier`, `list_date`, `delist_date`
-- Daily bars: `Dict[date, FuturesDailyBar]`
-- Methods: `is_tradable()`, `days_to_expiry()`, `get_price()`, etc.
-
-### BaselineRollStrategy
-
-Fixed-rule rolling strategy:
-- Roll trigger: N days before expiry (default: 2 days)
-- Contract selection: nearby, volume, or open interest based
-- Target leverage: configurable (default: 1.0x)
-
-### BasisTimingStrategy
-
-Enhanced strategy with basis timing signals:
-- Entry when basis < threshold (e.g., -2% discount)
-- Exit when basis > threshold (e.g., +0.5%)
-- Optional position scaling by basis depth
-
-## Backtest Results (IC Futures, 2015-2025)
-
-| Metric | Value |
-|--------|-------|
-| Total Return | 181.63% |
-| Annualized Return | 10.23% |
-| Annualized Volatility | 25.28% |
-| Sharpe Ratio | 0.33 |
-| Max Drawdown | -46.95% |
-| Benchmark Return | -1.78% |
-| **Alpha (Excess Return)** | **12.01%** |
-| Information Ratio | 1.36 |
-
-*Note: Uses 242 trading days/year (China market)*
-
-## Configuration
-
-All parameters are managed via `config.toml`:
-
-```toml
-[data]
-fut_code = "IC"  # IC, IM, or IF
-
-[strategy]
-strategy_type = "baseline"  # or "basis_timing"
-roll_days_before_expiry = 2
-target_leverage = 1.0
-
-[backtest]
-start_date = "2015-05-01"
-trading_days_per_year = 242  # China market
 ```
 
 ## Dependencies

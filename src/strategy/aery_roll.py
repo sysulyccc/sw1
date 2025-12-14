@@ -7,7 +7,7 @@ from ..domain.contract import FuturesContract
 from ..domain.chain import ContractChain
 from ..data.signal_snapshot import SignalSnapshot
 from ..account.account import Account
-from . import BaselineRollStrategy
+from .baseline_roll import BaselineRollStrategy
 
 
 class AERYRollStrategy(BaselineRollStrategy):
@@ -104,7 +104,7 @@ class AERYRollStrategy(BaselineRollStrategy):
 
     def _select_roll_target(
         self,
-        trade_date: date,
+        snapshot: SignalSnapshot,
         current_contract: FuturesContract,
     ) -> Optional[FuturesContract]:
         """

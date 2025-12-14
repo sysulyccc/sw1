@@ -5,28 +5,31 @@ Period: 2015-05-04 to 2025-11-28
 
 Strategy Performance:
 ----------------------------------------
-  Total Return:          15.10%
-  Annualized Return:     1.33%
-  Annualized Volatility: 16.65%
-  Sharpe Ratio:          -0.04
-  Max Drawdown:          -32.85%
-  Calmar Ratio:          0.04
-  Win Rate:              17.43%
+  Total Return:          62.41%
+  Annualized Return:     4.67%
+  Annualized Volatility: 19.35%
+  Sharpe Ratio:          0.14
+  Max Drawdown:          -33.70%
+  Calmar Ratio:          0.14
+  Win Rate:              22.13%
 
 Benchmark Performance (CSI 500 Index):
 ----------------------------------------
   Annualized Return:     -1.78%
   Annualized Volatility: 24.92%
 
-Relative Performance:
+Excess Performance (Alpha):
 ----------------------------------------
-  Alpha (Excess Return): 3.11%
-  Tracking Error:        19.73%
-  Information Ratio:     0.16
+  Alpha (Ann.):          6.45%
+  Tracking Error:        18.44%
+  Information Ratio:     0.35
+  Excess Max Drawdown:   -42.06%
+  Excess Win Rate:       51.77%
+  Excess Calmar:         0.15
 
 Trading Statistics:
 ----------------------------------------
   Trading Days:          2572
-  Total Trades:          217
+  Total Trades:          176
 
 ============================================================

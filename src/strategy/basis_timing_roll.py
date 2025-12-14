@@ -8,7 +8,7 @@ from ..domain.contract import FuturesContract
 from ..domain.chain import ContractChain
 from ..data.signal_snapshot import SignalSnapshot
 from ..account.account import Account
-from . import BaselineRollStrategy
+from .baseline_roll import BaselineRollStrategy
 
 
 class BasisTimingRollStrategy(BaselineRollStrategy):
@@ -132,7 +132,7 @@ class BasisTimingRollStrategy(BaselineRollStrategy):
 
         # 4. Execute roll or maintain position
         if should_roll_now:
-            new_contract = self._select_roll_target(trade_date, current_contract)
+            new_contract = self._select_roll_target(snapshot, current_contract)
 
             if new_contract is None:
                 volume = self._calculate_target_volume(
@@ -171,7 +171,7 @@ class BasisTimingRollStrategy(BaselineRollStrategy):
         """
         Handle initial position entry using the base contract selection logic.
         """
-        contract = self._select_contract(trade_date)
+        contract = self._select_contract(snapshot)
 
         if contract is None:
             return {}

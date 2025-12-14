@@ -90,7 +90,7 @@ class SpreadTimingRollStrategy(BaselineRollStrategy):
         # 1. Initial entry: no existing position
         holding_contracts = account.get_holding_contracts()
         if not holding_contracts:
-            contract = self._select_contract(trade_date)
+            contract = self._select_contract(snapshot)
             if contract is None:
                 return {}
 
@@ -161,7 +161,7 @@ class SpreadTimingRollStrategy(BaselineRollStrategy):
 
         # 4. Execute roll or maintain position
         if should_roll_now:
-            new_contract = self._select_roll_target(trade_date, current_contract)
+            new_contract = self._select_roll_target(snapshot, current_contract)
 
             if new_contract is None:
                 volume = self._calculate_target_volume(

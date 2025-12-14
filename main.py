@@ -9,18 +9,22 @@ from loguru import logger
 
 from src.config import Config, load_config
 from src.data.handler import DataHandler
-from src.strategy.baseline_roll import BaselineRollStrategy
-# HEAD branch strategies
-from src.strategy.BasisTimingRollStrategy import BasisTimingRollStrategy
-from src.strategy.SpreadTimingRollStrategy import SpreadTimingRollStrategy
-from src.strategy.LiquidityRollStrategy import LiquidityRollStrategy
-from src.strategy.AERYRollStrategy import AERYRollStrategy
-# PR branch strategies
-from src.strategy.smart_roll import SmartRollStrategy
-from src.strategy.basis_timing import BasisTimingStrategy
-from src.strategy.fixed_lot_baseline_roll import FixedLotBaselineRollStrategy
-from src.strategy.fixed_lot_smart_roll import FixedLotSmartRollStrategy
-from src.strategy.fixed_lot_basis_timing import FixedLotBasisTimingStrategy
+from src.strategy import (
+    BaselineRollStrategy,
+    SmartRollStrategy,
+    BasisTimingStrategy,
+    BasisTimingRollStrategy,
+    LiquidityRollStrategy,
+    SpreadTimingRollStrategy,
+    AERYRollStrategy,
+    FixedLotBaselineRollStrategy,
+    FixedLotSmartRollStrategy,
+    FixedLotBasisTimingStrategy,
+    FixedLotBasisTimingRollStrategy,
+    FixedLotLiquidityRollStrategy,
+    FixedLotSpreadTimingRollStrategy,
+    FixedLotAERYRollStrategy,
+)
 from src.backtest.engine import BacktestEngine
 
 
@@ -131,44 +135,94 @@ def run_backtest_from_config(config: Config):
                 basis_use_prev_close=cfg.strategy.basis_use_prev_close,
                 neutral_hold_baseline=cfg.strategy.neutral_hold_baseline,
             )
-    # HEAD branch strategies
-    elif strategy_type == "basis_timing_roll":
-        strategy = BasisTimingRollStrategy(
-            contract_chain=data_handler.contract_chain,
-            roll_window_start=cfg.strategy.roll_days_before_expiry,
-            history_window=cfg.strategy.history_window,
-            contract_selection=cfg.strategy.contract_selection,
-            target_leverage=cfg.strategy.target_leverage,
-            min_roll_days=cfg.strategy.min_roll_days,
-            signal_price_field=cfg.backtest.signal_price_field,
-        )
-    elif strategy_type == "spread_timing":
-        strategy = SpreadTimingRollStrategy(
-            contract_chain=data_handler.contract_chain,
-            roll_window_start=cfg.strategy.roll_days_before_expiry,
-            history_window=cfg.strategy.history_window,
-            contract_selection=cfg.strategy.contract_selection,
-            target_leverage=cfg.strategy.target_leverage,
-            min_roll_days=cfg.strategy.min_roll_days,
-            signal_price_field=cfg.backtest.signal_price_field,
-        )
-    elif strategy_type == "liquidity_roll":
-        strategy = LiquidityRollStrategy(
-            contract_chain=data_handler.contract_chain,
-            roll_days_before_expiry=cfg.strategy.roll_days_before_expiry,
-            contract_selection=cfg.strategy.contract_selection,
-            target_leverage=cfg.strategy.target_leverage,
-            min_roll_days=cfg.strategy.min_roll_days,
-            signal_price_field=cfg.backtest.signal_price_field,
-        )
-    elif strategy_type == "aery_roll":
-        strategy = AERYRollStrategy(
-            contract_chain=data_handler.contract_chain,
-            roll_days_before_expiry=cfg.strategy.roll_days_before_expiry,
-            target_leverage=cfg.strategy.target_leverage,
-            min_roll_days=cfg.strategy.min_roll_days,
-            signal_price_field=cfg.backtest.signal_price_field,
-        )
+    elif strategy_type in ("basis_timing_roll", "basis_timing_roll_fixed_lot"):
+        if is_fixed_lot:
+            strategy = FixedLotBasisTimingRollStrategy(
+                contract_chain=data_handler.contract_chain,
+                roll_window_start=cfg.strategy.roll_window_start,
+                history_window=cfg.strategy.history_window,
+                basis_threshold_percentile=cfg.strategy.basis_threshold_percentile,
+                hard_roll_days=cfg.strategy.hard_roll_days,
+                contract_selection=cfg.strategy.contract_selection,
+                fixed_lot_size=cfg.strategy.fixed_lot_size,
+                min_roll_days=cfg.strategy.min_roll_days,
+                futures_price_field=cfg.backtest.signal_price_field,
+            )
+        else:
+            strategy = BasisTimingRollStrategy(
+                contract_chain=data_handler.contract_chain,
+                roll_window_start=cfg.strategy.roll_window_start,
+                history_window=cfg.strategy.history_window,
+                basis_threshold_percentile=cfg.strategy.basis_threshold_percentile,
+                hard_roll_days=cfg.strategy.hard_roll_days,
+                contract_selection=cfg.strategy.contract_selection,
+                target_leverage=cfg.strategy.target_leverage,
+                min_roll_days=cfg.strategy.min_roll_days,
+                futures_price_field=cfg.backtest.signal_price_field,
+            )
+    elif strategy_type in ("spread_timing", "spread_timing_fixed_lot"):
+        if is_fixed_lot:
+            strategy = FixedLotSpreadTimingRollStrategy(
+                contract_chain=data_handler.contract_chain,
+                roll_window_start=cfg.strategy.roll_window_start,
+                history_window=cfg.strategy.history_window,
+                spread_threshold_percentile=cfg.strategy.spread_threshold_percentile,
+                hard_roll_days=cfg.strategy.hard_roll_days,
+                contract_selection=cfg.strategy.contract_selection,
+                fixed_lot_size=cfg.strategy.fixed_lot_size,
+                min_roll_days=cfg.strategy.min_roll_days,
+                futures_price_field=cfg.backtest.signal_price_field,
+            )
+        else:
+            strategy = SpreadTimingRollStrategy(
+                contract_chain=data_handler.contract_chain,
+                roll_window_start=cfg.strategy.roll_window_start,
+                history_window=cfg.strategy.history_window,
+                spread_threshold_percentile=cfg.strategy.spread_threshold_percentile,
+                hard_roll_days=cfg.strategy.hard_roll_days,
+                contract_selection=cfg.strategy.contract_selection,
+                target_leverage=cfg.strategy.target_leverage,
+                min_roll_days=cfg.strategy.min_roll_days,
+                futures_price_field=cfg.backtest.signal_price_field,
+            )
+    elif strategy_type in ("liquidity_roll", "liquidity_roll_fixed_lot"):
+        if is_fixed_lot:
+            strategy = FixedLotLiquidityRollStrategy(
+                contract_chain=data_handler.contract_chain,
+                roll_days_before_expiry=cfg.strategy.roll_days_before_expiry,
+                contract_selection=cfg.strategy.contract_selection,
+                fixed_lot_size=cfg.strategy.fixed_lot_size,
+                min_roll_days=cfg.strategy.min_roll_days,
+                signal_price_field=cfg.backtest.signal_price_field,
+                roll_criteria=cfg.strategy.roll_criteria,
+            )
+        else:
+            strategy = LiquidityRollStrategy(
+                contract_chain=data_handler.contract_chain,
+                roll_days_before_expiry=cfg.strategy.roll_days_before_expiry,
+                contract_selection=cfg.strategy.contract_selection,
+                target_leverage=cfg.strategy.target_leverage,
+                min_roll_days=cfg.strategy.min_roll_days,
+                signal_price_field=cfg.backtest.signal_price_field,
+                roll_criteria=cfg.strategy.roll_criteria,
+            )
+    elif strategy_type in ("aery_roll", "aery_roll_fixed_lot"):
+        if is_fixed_lot:
+            strategy = FixedLotAERYRollStrategy(
+                contract_chain=data_handler.contract_chain,
+                roll_days_before_expiry=cfg.strategy.roll_days_before_expiry,
+                fixed_lot_size=cfg.strategy.fixed_lot_size,
+                min_roll_days=cfg.strategy.min_roll_days,
+                signal_price_field=cfg.backtest.signal_price_field,
+            )
+        else:
+            strategy = AERYRollStrategy(
+                contract_chain=data_handler.contract_chain,
+                roll_days_before_expiry=cfg.strategy.roll_days_before_expiry,
+                target_leverage=cfg.strategy.target_leverage,
+                min_roll_days=cfg.strategy.min_roll_days,
+                signal_price_field=cfg.backtest.signal_price_field,
+            )
     else:
         raise ValueError(f"Unknown strategy type: {strategy_type}")
     

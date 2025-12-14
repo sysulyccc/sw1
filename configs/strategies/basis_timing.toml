@@ -1,0 +1,50 @@
+# Basis Timing Strategy Configuration
+# ====================================
+
+[data]
+processed_data_path = "/root/sw1/processed_data"
+fut_code = "IC"
+
+[account]
+initial_capital = 10_000_000.0
+default_margin_rate = 0.12
+commission_rate = 0.00023
+use_dynamic_margin = true
+
+[strategy]
+strategy_type = "basis_timing"
+strategy_name = "Basis Timing Strategy"
+roll_days_before_expiry = 2
+contract_selection = "nearby"
+min_roll_days = 5
+target_leverage = 1.0
+position_mode = "notional"
+fixed_lot_size = 1
+
+# Basis timing specific parameters
+basis_entry_threshold = -0.02
+basis_exit_threshold = 0.005
+lookback_window = 60
+use_percentile = false
+entry_percentile = 0.2
+exit_percentile = 0.8
+position_scale_by_basis = false
+basis_use_prev_close = false
+neutral_hold_baseline = false
+
+[backtest]
+start_date = "2015-05-01"
+end_date = ""
+benchmark_name = "CSI 500 Index"
+risk_free_rate = 0.02
+trading_days_per_year = 242
+signal_price_field = "open"
+execution_price_field = "open"
+
+[output]
+output_path = "./output"
+save_plots = true
+save_trade_log = true
+save_nav_series = true
+plot_dpi = 300
+figure_format = "png"

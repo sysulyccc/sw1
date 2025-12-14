@@ -1,11 +1,9 @@
-# Default Configuration (Template)
-# =================================
-# This file is a template. Use strategy-specific configs in configs/strategies/
-# Run: ./run.sh <strategy_name>
+# Spread Timing Roll Strategy Configuration
+# ==========================================
 
 [data]
 processed_data_path = "/root/sw1/processed_data"
-fut_code = "IC"  # IC (CSI500), IM (CSI1000), IF (CSI300)
+fut_code = "IC"
 
 [account]
 initial_capital = 10_000_000.0
@@ -14,8 +12,19 @@ commission_rate = 0.00023
 use_dynamic_margin = true
 
 [strategy]
-strategy_type = "baseline"
-strategy_name = "Baseline Roll Strategy"
+strategy_type = "spread_timing"
+strategy_name = "Spread Timing Roll Strategy"
+contract_selection = "nearby"
+min_roll_days = 5
+target_leverage = 1.0
+position_mode = "notional"
+fixed_lot_size = 1
+
+# Spread timing specific parameters
+roll_window_start = 15
+hard_roll_days = 2
+history_window = 90
+spread_threshold_percentile = 30
 
 [backtest]
 start_date = "2015-05-01"

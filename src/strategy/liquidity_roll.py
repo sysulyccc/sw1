@@ -43,7 +43,6 @@ class LiquidityRollStrategy(BaselineRollStrategy):
             signal_price_field=signal_price_field,
         )
         self.roll_criteria = roll_criteria
-        # The legacy _check_next_contract helper is no longer required.
 
     def _should_roll(
         self,
@@ -67,7 +66,7 @@ class LiquidityRollStrategy(BaselineRollStrategy):
             return True
 
         # 2. Identify roll candidate using base selection logic
-        candidate = self._select_roll_target(trade_date, contract)
+        candidate = self._select_roll_target(snapshot, contract)
         if candidate is None:
             # No eligible roll target available
             return False
@@ -86,3 +85,5 @@ class LiquidityRollStrategy(BaselineRollStrategy):
         # Trigger roll if candidate is more liquid
         if candidate_val > current_val and candidate_val > 0:
             return True
+
+        return False
