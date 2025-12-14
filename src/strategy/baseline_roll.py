@@ -157,7 +157,7 @@ class BaselineRollStrategy(Strategy):
         if self.contract_selection == 'nearby':
             return candidates[0]  # Already sorted by expiry
         elif self.contract_selection == 'next_nearby':
-            return candidates[0]  # For roll, take nearest among valid
+            return candidates[1]  # For roll, take nearest among valid
         elif self.contract_selection == 'volume':
             return max(candidates, key=lambda c: c.get_volume(trade_date))
         elif self.contract_selection == 'oi':

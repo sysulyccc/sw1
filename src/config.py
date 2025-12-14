@@ -48,7 +48,7 @@ class AccountConfig:
 @dataclass
 class StrategyConfig:
     """Strategy configuration."""
-    strategy_type: str = "baseline"  # "baseline" or "basis_timing"
+    strategy_type: str = "basis_timing"  # "baseline" or "basis_timing" or "spread_timing" or "liquidity_roll" or "aery_roll"
     strategy_name: str = "Baseline Roll Strategy"
     
     # Roll parameters
@@ -58,15 +58,25 @@ class StrategyConfig:
     target_leverage: float = 1.0
     roll_criteria: str = "volume"  # volume, oi (for smart_roll strategy)
     
-    # Basis timing parameters (only for basis_timing strategy)
-    basis_entry_threshold: float = -0.02  # -2%
-    basis_exit_threshold: float = 0.005   # +0.5%
-    lookback_window: int = 60
-    use_percentile: bool = False
-    entry_percentile: float = 0.2
-    exit_percentile: float = 0.8
-    position_scale_by_basis: bool = False
-
+    # Basis timing parameters
+    roll_window_start = 15            # Start of timing window (days)
+    hard_roll_days = 1                # Forced roll threshold
+    history_window = 60               # Basis lookback window
+    basis_threshold_percentile = 70   # Roll if basis >= this percentile
+    
+    # Spread timing parameters
+    roll_window_start = 15            # Start of timing window (days)
+    hard_roll_days = 2                # Forced roll threshold
+    history_window = 90               # Spread lookback window
+    spread_threshold_percentile = 30  # Roll if spread <= this percentile
+    
+    # liquidity_roll parameters
+    roll_days_before_expiry = 1   # Safety net
+    roll_criteria = "volume"      # Options: "volume", "oi"
+    
+    # aery_roll parameters
+    roll_days_before_expiry = 2        # Fixed roll trigger
+    min_roll_days = 5
 
 @dataclass
 class BacktestConfig:

@@ -15,11 +15,8 @@ use_dynamic_margin = true   # Use historical margin rates from data
 
 [strategy]
 # Strategy selection
-# strategy_type = "baseline"  # Options: "baseline", "basis_timing", "smart_roll"
-# strategy_name = "Baseline Roll Strategy"
-
-strategy_type = "smart_roll"
-strategy_name = "Smart Roll Strategy (Volume)"
+strategy_type = "baseline"  # Options: "baseline" or "basis_timing" or "spread_timing" or "liquidity_roll" or "aery_roll"
+strategy_name = "Baseline Roll Strategy"
 
 # Roll parameters
 roll_days_before_expiry = 1  # Safety net for smart roll
@@ -27,14 +24,26 @@ contract_selection = "nearby"  # Options: "nearby", "volume", "oi"
 min_roll_days = 5
 target_leverage = 1.0
 
-# Basis timing parameters (only used when strategy_type = "basis_timing")
-basis_entry_threshold = -0.02   # Enter when basis < -2%
-basis_exit_threshold = 0.005    # Exit when basis > +0.5%
-lookback_window = 60
-use_percentile = false
-entry_percentile = 0.2
-exit_percentile = 0.8
-position_scale_by_basis = false
+# Basis timing parameters
+roll_window_start = 15            # Start of timing window (days)
+hard_roll_days = 1                # Forced roll threshold
+history_window = 60               # Basis lookback window
+basis_threshold_percentile = 70   # Roll if basis >= this percentile
+    
+# Spread timing parameters
+roll_window_start = 15            # Start of timing window (days)
+hard_roll_days = 2                # Forced roll threshold
+history_window = 90               # Spread lookback window
+spread_threshold_percentile = 30  # Roll if spread <= this percentile
+    
+# liquidity_roll parameters
+roll_days_before_expiry = 1   # Safety net
+roll_criteria = "volume"      # Options: "volume", "oi"
+    
+# aery_roll parameters
+roll_days_before_expiry = 2        # Fixed roll trigger
+min_roll_days = 5
+
 
 [backtest]
 # Backtest period (empty string or omit for full range)
