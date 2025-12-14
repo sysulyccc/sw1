@@ -60,7 +60,7 @@ Results are saved to `output/{strategy}_{fut}/`:
 ### 5. Run Tests
 
 ```bash
-pytest tests/ -v  # 42 tests
+pytest tests/ -v
 ```
 
 ## Dependencies

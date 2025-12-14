@@ -111,7 +111,7 @@ def test_basis_timing_roll_day_uses_new_contract(monkeypatch):
     snapshot = MagicMock(spec=SignalSnapshot)
     snapshot.trade_date = date(2019, 7, 16)
 
-    def _fake_get_basis(ts_code: str, relative: bool = True):
+    def _fake_get_basis(ts_code: str, relative: bool = True, use_prev_close: bool = False):
         if ts_code == "IC1908.CFX":
             return -0.03
         return -0.01
