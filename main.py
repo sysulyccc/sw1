@@ -10,8 +10,10 @@ from loguru import logger
 from src.config import Config, load_config
 from src.data.handler import DataHandler
 from src.strategy.baseline_roll import BaselineRollStrategy
-from src.strategy.smart_roll import SmartRollStrategy
-from src.strategy.basis_timing import BasisTimingStrategy
+from src.strategy.BasisTimingRollStrategy import BasisTimingRollStrategy
+from src.strategy.SpreadTimingRollStrategy import SpreadTimingRollStrategy
+from src.strategy.LiquidityRollStrategy import LiquidityRollStrategy
+from src.strategy.AERYRollStrategy import AERYRollStrategy
 from src.backtest.engine import BacktestEngine
 
 
@@ -46,31 +48,42 @@ def run_backtest_from_config(config: Config):
             min_roll_days=cfg.strategy.min_roll_days,
             signal_price_field=cfg.backtest.signal_price_field,
         )
-    elif cfg.strategy.strategy_type == "smart_roll":
-        strategy = SmartRollStrategy(
-            contract_chain=data_handler.contract_chain,
-            roll_days_before_expiry=cfg.strategy.roll_days_before_expiry,
-            contract_selection=cfg.strategy.contract_selection,
-            target_leverage=cfg.strategy.target_leverage,
-            min_roll_days=cfg.strategy.min_roll_days,
-            signal_price_field=cfg.backtest.signal_price_field,
-            roll_criteria=cfg.strategy.roll_criteria,
-        )
     elif cfg.strategy.strategy_type == "basis_timing":
-        strategy = BasisTimingStrategy(
+        strategy = BasisTimingRollStrategy(
+            contract_chain=data_handler.contract_chain,
+            roll_window_start=cfg.strategy.roll_days_before_expiry,
+            history_window=cfg.strategy.min_roll_days,
+            contract_selection=cfg.strategy.contract_selection,
+            target_leverage=cfg.strategy.target_leverage,
+            min_roll_days=cfg.strategy.min_roll_days,
+            signal_price_field=cfg.backtest.signal_price_field,
+        )
+    elif cfg.strategy.strategy_type == "spread_timing":
+        strategy = SpreadTimingRollStrategy(
+            contract_chain=data_handler.contract_chain,
+            roll_window_start=cfg.strategy.roll_days_before_expiry,
+            history_window=cfg.strategy.min_roll_days,
+            contract_selection=cfg.strategy.contract_selection,
+            target_leverage=cfg.strategy.target_leverage,
+            min_roll_days=cfg.strategy.min_roll_days,
+            signal_price_field=cfg.backtest.signal_price_field,
+        )
+    elif cfg.strategy.strategy_type == "liquidity_roll":
+        strategy = LiquidityRollStrategy(
             contract_chain=data_handler.contract_chain,
             roll_days_before_expiry=cfg.strategy.roll_days_before_expiry,
             contract_selection=cfg.strategy.contract_selection,
             target_leverage=cfg.strategy.target_leverage,
             min_roll_days=cfg.strategy.min_roll_days,
             signal_price_field=cfg.backtest.signal_price_field,
-            basis_entry_threshold=cfg.strategy.basis_entry_threshold,
-            basis_exit_threshold=cfg.strategy.basis_exit_threshold,
-            lookback_window=cfg.strategy.lookback_window,
-            use_percentile=cfg.strategy.use_percentile,
-            entry_percentile=cfg.strategy.entry_percentile,
-            exit_percentile=cfg.strategy.exit_percentile,
-            position_scale_by_basis=cfg.strategy.position_scale_by_basis,
+        )
+    elif cfg.strategy.strategy_type == "aery_roll":
+        strategy = AERYRollStrategy(
+            contract_chain=data_handler.contract_chain,
+            roll_days_before_expiry=cfg.strategy.roll_days_before_expiry,
+            target_leverage=cfg.strategy.target_leverage,
+            min_roll_days=cfg.strategy.min_roll_days,
+            signal_price_field=cfg.backtest.signal_price_field,
         )
     else:
         raise ValueError(f"Unknown strategy type: {cfg.strategy.strategy_type}")
